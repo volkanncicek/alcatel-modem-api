@@ -172,7 +172,7 @@ python -m alcatel_modem_api.cli -u http://192.168.1.1 -p admin -c GetWlanSetting
 
 ```bash
 # Send SMS
-python -m alcatel_modem_api.cli -u http://192.168.1.1 -p admin sms send +1234567890 "Hello from Python!"
+python -m alcatel_modem_api.cli -u http://192.168.1.1 -p admin sms send -n +1234567890 -m "Hello from Python!"
 
 # Get SMS send status
 python -m alcatel_modem_api.cli -u http://192.168.1.1 -p admin -c GetSendSMSResult --pretty
@@ -458,7 +458,7 @@ python -m alcatel_modem_api.cli -c GetSystemStatus --pretty
 
 ```bash
 # Using CLI
-python -m alcatel_modem_api.cli -u http://192.168.1.1 -p admin sms send +1234567890 "System backup completed!"
+python -m alcatel_modem_api.cli -u http://192.168.1.1 -p admin sms send -n +1234567890 -m "System backup completed!"
 
 # Using helper script
 python examples/sms.py -u http://192.168.1.1 -p admin --send --phone +1234567890 --message "System backup completed!"
@@ -528,7 +528,7 @@ backup_result=$(./backup_script.sh)
 
 # Send SMS notification
 python -m alcatel_modem_api.cli -u http://192.168.1.1 -p admin \
-    sms send +1234567890 "Backup completed: $backup_result"
+    sms send -n +1234567890 -m "Backup completed: $backup_result"
 ```
 
 ### Signal Strength Optimization
@@ -553,7 +553,7 @@ See `examples/signal.py` for more options.
 Query your mobile operator via SMS:
 
 ```bash
-python -m alcatel_modem_api.cli -u http://192.168.1.1 -p admin sms send 1234 "KALAN"
+python -m alcatel_modem_api.cli -u http://192.168.1.1 -p admin sms send -n 1234 -m "KALAN"
 python examples/sms.py -p admin --wait --sender 1234 --timeout 30
 ```
 
@@ -605,7 +605,7 @@ python examples/poll.py --basic --pretty
 python examples/signal.py -u http://192.168.1.1 -p admin --extended
 
 # Send SMS
-python -m alcatel_modem_api.cli -u http://192.168.1.1 -p admin sms send 1234 "KALAN"
+python -m alcatel_modem_api.cli -u http://192.168.1.1 -p admin sms send -n 1234 -m "KALAN"
 
 # Check connection status
 python examples/connection.py -u http://192.168.1.1 -p admin status

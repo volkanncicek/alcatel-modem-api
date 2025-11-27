@@ -51,7 +51,7 @@ def main():
   parser.add_argument("--list-all", action="store_true", help="List all available commands")
 
   # Create subparsers for commands
-  subparsers = parser.add_subparsers(dest="command", help="Available commands")
+  subparsers = parser.add_subparsers(dest="subcommand", help="Available commands")
 
   # SMS subparser
   sms_parser = subparsers.add_parser("sms", help="SMS operations")
@@ -88,7 +88,7 @@ def main():
     return
 
   # Handle SMS subcommand
-  if args.command == "sms":
+  if args.subcommand == "sms":
     if not hasattr(args, "sms_action") or not args.sms_action:
       sms_parser.print_help()
       return
@@ -126,7 +126,7 @@ def main():
       sys.exit(1)
 
   # Handle special poll commands
-  if args.command in ["poll_basic_status", "pollBasic", "poll_basic"]:
+  if args.subcommand in ["poll_basic_status", "pollBasic", "poll_basic"] or args.command in ["poll_basic_status", "pollBasic", "poll_basic"]:
     api = AlcatelModemAPI(args.url)
     status = api.poll_basic_status()
     if args.pretty:
@@ -137,7 +137,12 @@ def main():
       print(status)
     return
 
-  if args.command in [
+  if args.subcommand in [
+    "poll_extended_status",
+    "pollExtended",
+    "poll_extended",
+    "poll",
+  ] or args.command in [
     "poll_extended_status",
     "pollExtended",
     "poll_extended",
@@ -157,7 +162,10 @@ def main():
     return
 
   # Handle regular command
-  if not args.command:
+  # Use subcommand if available, otherwise fall back to command (legacy -c flag)
+  command_to_run = args.subcommand if args.subcommand else args.command
+
+  if not command_to_run:
     parser.print_help()
     return
 
@@ -165,10 +173,10 @@ def main():
 
   try:
     if args.pretty:
-      result = api.run_pretty(args.command)
+      result = api.run_pretty(command_to_run)
       print(result)
     else:
-      result = api.run(args.command)
+      result = api.run(command_to_run)
       print(result)
   except AuthenticationError as e:
     print(f"❌ Authentication error: {e}")

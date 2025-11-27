@@ -174,7 +174,11 @@ class AlcatelModemAPI:
     if resp.status_code != 200:
       raise AlcatelConnectionError(f"HTTP {resp.status_code}: {resp.text[:200]}")
 
-    result = resp.json()
+    # Handle JSON decode errors (e.g., when modem returns HTML error page)
+    try:
+      result = resp.json()
+    except (ValueError, json.JSONDecodeError) as e:
+      raise AlcatelAPIError(f"Invalid response from modem (not JSON). HTTP {resp.status_code}: {resp.text[:200]}")
 
     if "error" in result:
       error = result["error"]
