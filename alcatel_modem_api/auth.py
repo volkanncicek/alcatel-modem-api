@@ -4,6 +4,8 @@ Handles encryption and token management
 """
 
 import os
+import platform
+import stat
 from base64 import b64encode
 from pathlib import Path
 
@@ -100,6 +102,9 @@ class TokenManager:
     try:
       with open(self.session_file, "w") as f:
         f.write(token)
+      # Set file permissions to 600 (read/write for owner only) on Linux/macOS
+      if platform.system() != "Windows":
+        os.chmod(self.session_file, stat.S_IRUSR | stat.S_IWUSR)
     except Exception:
       # Silently fail if we can't save token
       pass

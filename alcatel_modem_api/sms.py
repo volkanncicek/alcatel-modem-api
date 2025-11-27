@@ -7,7 +7,7 @@ import datetime
 import time
 from typing import Any
 
-from .api import AlcatelModemAPI
+from .api import AlcatelAPIError, AlcatelConnectionError, AlcatelModemAPI, AlcatelTimeoutError
 from .auth import AuthenticationError
 
 
@@ -60,8 +60,10 @@ class SMSManager:
       )
     except AuthenticationError:
       raise
+    except (AlcatelConnectionError, AlcatelTimeoutError, AlcatelAPIError):
+      raise
     except Exception as e:
-      raise Exception(f"Failed to send SMS: {str(e)}")
+      raise AlcatelAPIError(f"Failed to send SMS: {str(e)}")
 
     # Wait a bit before checking status (as per IK40V implementation)
     time.sleep(1)
@@ -76,11 +78,11 @@ class SMSManager:
         return True
       elif status >= self.SMS_STATUS_FAIL_SENDING:
         error_msg = self._get_status_message(status)
-        raise Exception(f"SMS send failed: {error_msg}")
+        raise AlcatelAPIError(f"SMS send failed: {error_msg}")
 
       time.sleep(0.5)
 
-    raise Exception(f"SMS send timeout after {timeout} seconds")
+    raise AlcatelTimeoutError(f"SMS send timeout after {timeout} seconds")
 
   def get_send_status(self) -> dict[Any, Any]:
     """

@@ -6,7 +6,7 @@ Command-line interface for Alcatel Modem API
 import argparse
 import sys
 
-from . import AlcatelModemAPI, AuthenticationError
+from . import AlcatelModemAPI, AuthenticationError, SMSManager
 
 
 def print_available_commands():
@@ -44,13 +44,26 @@ def main():
 
   parser.add_argument("-p", "--password", help="Admin password (required for protected commands)")
 
-  parser.add_argument("-c", "--command", help="Command to execute")
-
   parser.add_argument("--pretty", action="store_true", help="Pretty print JSON output")
 
   parser.add_argument("-l", "--list", action="store_true", help="List available commands")
 
   parser.add_argument("--list-all", action="store_true", help="List all available commands")
+
+  # Create subparsers for commands
+  subparsers = parser.add_subparsers(dest="command", help="Available commands")
+
+  # SMS subparser
+  sms_parser = subparsers.add_parser("sms", help="SMS operations")
+  sms_subparsers = sms_parser.add_subparsers(dest="sms_action", help="SMS actions")
+
+  # SMS send command
+  sms_send = sms_subparsers.add_parser("send", help="Send SMS message")
+  sms_send.add_argument("-n", "--number", required=True, help="Phone number to send SMS to")
+  sms_send.add_argument("-m", "--message", required=True, help="SMS message text")
+
+  # Regular command parser (for backward compatibility)
+  parser.add_argument("-c", "--command", help="Command to execute (legacy format)")
 
   args = parser.parse_args()
 
@@ -74,20 +87,42 @@ def main():
     print(f"\nTotal: {len(PUBLIC_VERBS) + len(RESTRICTED_VERBS)} commands")
     return
 
-  # Handle SMS send (if command starts with "sms:")
+  # Handle SMS subcommand
+  if args.command == "sms":
+    if not hasattr(args, "sms_action") or not args.sms_action:
+      sms_parser.print_help()
+      return
+
+    if not args.password:
+      print("❌ Error: Password required for SMS operations")
+      print("   Use: -p <password>")
+      sys.exit(1)
+
+    api = AlcatelModemAPI(args.url, args.password)
+    sms = SMSManager(api)
+
+    if args.sms_action == "send":
+      # number and message are required by argparse, so they should exist
+      try:
+        sms.send_sms(args.number, args.message)
+        print(f"✅ SMS sent successfully to {args.number}")
+      except AuthenticationError as e:
+        print(f"❌ Authentication error: {e}")
+        sys.exit(1)
+      except Exception as e:
+        print(f"❌ Error sending SMS: {e}")
+        sys.exit(1)
+    return
+
+  # Handle legacy SMS format (backward compatibility)
   if args.command and args.command.startswith("sms:"):
     parts = args.command.split(":", 2)
     if len(parts) == 3 and parts[1] == "send":
-      # Get message from remaining args if any
       if not args.password:
         print("❌ Error: Password required for SMS operations")
         print("   Use: -p <password>")
         sys.exit(1)
-
-      # For SMS send, we need to get message from stdin or as a separate argument
-      # For now, let's use a simpler approach - require it as part of command
-      print("❌ Error: SMS send format: -c 'sms:send:<number>' and provide message via stdin")
-      print("   Or use Python library directly")
+      print("❌ Error: Legacy SMS format is deprecated. Use: sms send -n <number> -m <message>")
       sys.exit(1)
 
   # Handle special poll commands

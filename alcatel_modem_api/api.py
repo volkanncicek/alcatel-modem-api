@@ -9,6 +9,25 @@ from typing import Any
 import requests
 
 from .auth import AuthenticationError, TokenManager, encrypt_admin, encrypt_token
+from .constants import get_connection_status, get_network_type
+
+
+class AlcatelConnectionError(Exception):
+  """Raised when connection to modem fails"""
+
+  pass
+
+
+class AlcatelAPIError(Exception):
+  """Raised when API returns an error"""
+
+  pass
+
+
+class AlcatelTimeoutError(Exception):
+  """Raised when request times out"""
+
+  pass
 
 
 class AlcatelModemAPI:
@@ -27,6 +46,7 @@ class AlcatelModemAPI:
     url: str = "http://192.168.1.1",
     password: str | None = None,
     session_file: str | None = None,
+    timeout: int = 10,
   ):
     """
     Initialize Alcatel Modem API client
@@ -35,9 +55,11 @@ class AlcatelModemAPI:
         url: Base URL of the modem (default: http://192.168.1.1)
         password: Admin password (optional, required for protected commands)
         session_file: Path to session token file (optional)
+        timeout: Request timeout in seconds (default: 10)
     """
     self._url = url.rstrip("/")
     self._password = password
+    self._timeout = timeout
     self._token_manager = TokenManager(session_file if session_file else None)
 
     self.session = requests.Session()
@@ -142,10 +164,15 @@ class AlcatelModemAPI:
     }
 
     api_url = f"{self._url}/jrd/webapi"
-    resp = self.session.post(api_url, json=message, timeout=10)
+    try:
+      resp = self.session.post(api_url, json=message, timeout=self._timeout)
+    except requests.exceptions.Timeout as e:
+      raise AlcatelTimeoutError(f"Request timed out after {self._timeout} seconds: {str(e)}")
+    except requests.exceptions.ConnectionError as e:
+      raise AlcatelConnectionError(f"Failed to connect to modem at {self._url}: {str(e)}")
 
     if resp.status_code != 200:
-      raise Exception(f"HTTP {resp.status_code}: {resp.text[:200]}")
+      raise AlcatelConnectionError(f"HTTP {resp.status_code}: {resp.text[:200]}")
 
     result = resp.json()
 
@@ -158,10 +185,10 @@ class AlcatelModemAPI:
       if error_code == -32699 or "Authentication" in error_msg:
         raise AuthenticationError(f"Authentication failed: {error_msg}")
 
-      raise Exception(f"Command failed: {error_msg} (code: {error_code})")
+      raise AlcatelAPIError(f"Command failed: {error_msg} (code: {error_code})")
 
     if "result" not in result:
-      raise Exception(f"Unexpected response: {result}")
+      raise AlcatelAPIError(f"Unexpected response: {result}")
 
     return result["result"]
 
@@ -352,8 +379,6 @@ class AlcatelModemAPI:
     system_info = self.get_system_info()
     system_status = self.get_system_status()
 
-    from .constants import get_connection_status, get_network_type
-
     return {
       "imei": system_info.get("IMEI", ""),
       "iccid": system_info.get("ICCID", ""),
@@ -372,8 +397,6 @@ class AlcatelModemAPI:
     system_info = self.get_system_info()
     network_info = self.get_network_info()
     connection_state = self.get_connection_state()
-
-    from .constants import get_connection_status, get_network_type
 
     return {
       "imei": system_info.get("IMEI", ""),
