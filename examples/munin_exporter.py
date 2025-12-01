@@ -3,7 +3,7 @@
 Munin exporter for Alcatel Modem API
 Exports modem metrics in Munin format for monitoring
 
-Based on: https://github.com/.../alcatel-mw40-munin-plugin
+Based on: https://github.com/kamilbaranskicom/muninAlcatelModemPlugin
 """
 
 import sys
