@@ -8,7 +8,7 @@ from .api import (
   AlcatelModemAPI,
   AlcatelTimeoutError,
 )
-from .auth import AuthenticationError
+from .auth import AuthenticationError, FileTokenStorage, MemoryTokenStorage, TokenStorageProtocol
 from .constants import (
   CONNECTION_STATUSES,
   NETWORK_TYPES,
@@ -19,6 +19,7 @@ from .constants import (
   get_network_type,
   get_sms_send_status,
 )
+from .models import ConnectionState, ExtendedStatus, NetworkInfo, SMSMessage, SystemStatus
 from .sms import SMSManager
 
 __version__ = "1.0.0"
@@ -37,4 +38,14 @@ __all__ = [
   "get_network_type",
   "get_connection_status",
   "get_sms_send_status",
+  # Token storage
+  "TokenStorageProtocol",
+  "FileTokenStorage",
+  "MemoryTokenStorage",
+  # Typed models
+  "SystemStatus",
+  "ExtendedStatus",
+  "NetworkInfo",
+  "ConnectionState",
+  "SMSMessage",
 ]

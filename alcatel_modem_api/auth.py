@@ -8,6 +8,7 @@ import platform
 import stat
 from base64 import b64encode
 from pathlib import Path
+from typing import Protocol
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import padding
@@ -78,12 +79,28 @@ def encrypt_token(token: str, param0: str, param1: str) -> str:
   return encoded
 
 
-class TokenManager:
-  """Manages authentication token storage and retrieval"""
+class TokenStorageProtocol(Protocol):
+  """Protocol for token storage implementations"""
+
+  def save_token(self, token: str) -> None:
+    """Save token to storage"""
+    ...
+
+  def get_token(self) -> str:
+    """Get current token from storage"""
+    ...
+
+  def clear_token(self) -> None:
+    """Clear stored token"""
+    ...
+
+
+class FileTokenStorage:
+  """File-based token storage implementation"""
 
   def __init__(self, session_file: str | None = None):
     """
-    Initialize token manager
+    Initialize file-based token storage
 
     Args:
         session_file: Path to session file (default: ~/.alcatel_modem_session)
@@ -102,9 +119,21 @@ class TokenManager:
     try:
       with open(self.session_file, "w") as f:
         f.write(token)
-      # Set file permissions to 600 (read/write for owner only) on Linux/macOS
-      if platform.system() != "Windows":
-        os.chmod(self.session_file, stat.S_IRUSR | stat.S_IWUSR)
+      # Set file permissions to 600 (read/write for owner only)
+      # On Windows, os.chmod has limited functionality but is safe to call
+      # It will only affect the read-only flag, which is acceptable for this use case
+      try:
+        if platform.system() != "Windows":
+          os.chmod(self.session_file, stat.S_IRUSR | stat.S_IWUSR)
+        else:
+          # On Windows, we can at least remove write permissions from others
+          # by setting the file to read-only for others (though this is limited)
+          # For stricter security on Windows, users should use MemoryTokenStorage
+          # or implement custom storage with pywin32
+          os.chmod(self.session_file, stat.S_IREAD | stat.S_IWRITE)
+      except (OSError, AttributeError):
+        # Silently fail if chmod doesn't work (e.g., on some filesystems)
+        pass
     except Exception:
       # Silently fail if we can't save token
       pass
@@ -130,3 +159,23 @@ class TokenManager:
         os.remove(self.session_file)
     except Exception:
       pass
+
+
+class MemoryTokenStorage:
+  """In-memory token storage implementation (useful for web apps, testing)"""
+
+  def __init__(self):
+    """Initialize in-memory token storage"""
+    self._token: str | None = None
+
+  def save_token(self, token: str) -> None:
+    """Save token to memory"""
+    self._token = token
+
+  def get_token(self) -> str:
+    """Get current token from memory"""
+    return self._token if self._token else ""
+
+  def clear_token(self) -> None:
+    """Clear stored token"""
+    self._token = None

@@ -102,6 +102,9 @@ class SMSManager:
 
     Returns:
         List of SMS messages
+
+    Raises:
+        AlcatelAPIError: If the API returns an error response
     """
     if contact_number:
       result = self.api.run("GetSMSListByContactNum", ContactNum=contact_number)
@@ -113,14 +116,20 @@ class SMSManager:
         # If that fails, try with empty ContactNum
         result = self.api.run("GetSMSListByContactNum", ContactNum="")
 
+    # Check if result is an error dict (should have been caught by _run_command, but defensive)
+    if isinstance(result, dict) and "error" in result:
+      error_msg = result.get("error", {}).get("message", "Unknown error")
+      raise AlcatelAPIError(f"SMS list retrieval failed: {error_msg}")
+
     # Result might be a dict with a list inside, or directly a list
     if isinstance(result, dict):
       # Look for common keys that might contain the list
       for key in ["SMSList", "List", "Messages", "SMS"]:
         if key in result and isinstance(result[key], list):
           return result[key]
-      # If no list found, return the dict itself
-      return [result] if result else []
+      # If no list found and it's not an error, return empty list
+      # (don't wrap a dict in a list as that's confusing)
+      return []
 
     return result if isinstance(result, list) else []
 

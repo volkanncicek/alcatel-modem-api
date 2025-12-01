@@ -8,7 +8,7 @@ from typing import Any
 
 import requests
 
-from .auth import AuthenticationError, TokenManager, encrypt_admin, encrypt_token
+from .auth import AuthenticationError, FileTokenStorage, encrypt_admin, encrypt_token
 from .constants import get_connection_status, get_network_type
 
 
@@ -60,7 +60,7 @@ class AlcatelModemAPI:
     self._url = url.rstrip("/")
     self._password = password
     self._timeout = timeout
-    self._token_manager = TokenManager(session_file if session_file else None)
+    self._token_manager = FileTokenStorage(session_file if session_file else None)
 
     self.session = requests.Session()
     self.session.headers = {
@@ -177,7 +177,7 @@ class AlcatelModemAPI:
     # Handle JSON decode errors (e.g., when modem returns HTML error page)
     try:
       result = resp.json()
-    except (ValueError, json.JSONDecodeError) as e:
+    except (ValueError, json.JSONDecodeError):
       raise AlcatelAPIError(f"Invalid response from modem (not JSON). HTTP {resp.status_code}: {resp.text[:200]}")
 
     if "error" in result:
