@@ -3,7 +3,7 @@
 Prometheus exporter for Alcatel Modem API
 Exports modem metrics in Prometheus format for monitoring
 
-Based on: https://github.com/.../nos-modem-alcatel-mw40v-prometheus-exporther
+Based on: https://github.com/philalex/nos-modem-alcatel-mw40v-prometheus-exporther
 """
 
 import sys
