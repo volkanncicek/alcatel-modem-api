@@ -41,11 +41,13 @@ def coerce_str_or_none(v: Any) -> Union[str, None]:
   if v is None:
     return None
   if isinstance(v, str):
-    v = v.strip()
-    if v == "" or v.upper() in ("N/A", "NA", "NULL", "NONE"):
+    stripped: str = v.strip()
+    if stripped == "" or stripped.upper() in ("N/A", "NA", "NULL", "NONE"):
       return None
-    return v
-  return str(v) if v else None
+    return stripped
+  if v:
+    return str(v)
+  return None
 
 
 class SystemStatus(BaseModel):
