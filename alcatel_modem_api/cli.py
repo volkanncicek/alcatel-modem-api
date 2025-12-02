@@ -5,17 +5,22 @@ Built with Typer and Rich for beautiful terminal output
 """
 
 import json
-import sys
+from time import sleep
 from typing import Annotated, Optional
 
 import typer
+from rich.align import Align
 from rich.console import Console
 from rich.json import JSON
+from rich.layout import Layout
+from rich.live import Live
+from rich.panel import Panel
 from rich.table import Table
+from rich.text import Text
 from typer import Option
 
 from . import AlcatelClient, AuthenticationError, UnsupportedModemError
-from .constants import PUBLIC_VERBS, RESTRICTED_VERBS
+from .constants import PUBLIC_VERBS, RESTRICTED_VERBS, get_network_type
 
 app = typer.Typer(
   name="alcatel",
@@ -218,6 +223,66 @@ def poll_extended(
   except AuthenticationError as e:
     console.print(f"[red]❌ Authentication error:[/red] {e}")
     raise typer.Exit(1)
+  except Exception as e:
+    handle_error(e)
+    raise typer.Exit(1)
+
+
+@system_app.command("monitor")
+def system_monitor(
+  url: str = url_option,
+  password: Optional[str] = password_option,
+  interval: float = typer.Option(1.0, help="Update interval in seconds"),
+):
+  """Live dashboard for signal and traffic monitoring"""
+  if not password:
+    console.print("[red]❌ Monitor requires password. Use -p <password>[/red]")
+    raise typer.Exit(1)
+
+  try:
+    client = get_client(url, password)
+
+    def generate_layout(status) -> Layout:
+      layout = Layout()
+      layout.split_column(Layout(name="header", size=3), Layout(name="body", ratio=1))
+      layout["body"].split_row(Layout(name="signal"), Layout(name="traffic"))
+
+      # Header
+      net_type = get_network_type(status.network_type)
+      header_text = Text(f"Connected to {status.network_name or 'Unknown'} ({net_type})", style="bold white")
+      layout["header"].update(Panel(Align.center(header_text), style="blue"))
+
+      # Signal Panel
+      signal_color = "green" if status.strength >= 4 else "yellow" if status.strength >= 2 else "red"
+      signal_text = Text()
+      signal_text.append(f"Strength : {'█' * status.strength}{'░' * (5 - status.strength)}\n", style=signal_color)
+      signal_text.append(f"RSSI     : {status.rssi or 'N/A'} dBm\n")
+      signal_text.append(f"RSRP     : {status.rsrp or 'N/A'} dBm\n")
+      signal_text.append(f"SINR     : {status.sinr or 'N/A'} dB\n")
+      layout["signal"].update(Panel(signal_text, title="Signal Quality", border_style=signal_color))
+
+      # Traffic Panel
+      traffic_text = Text()
+      traffic_text.append(f"Download : {status.bytes_in_rate / 1024 / 1024:.2f} MB/s\n", style="green")
+      traffic_text.append(f"Upload   : {status.bytes_out_rate / 1024 / 1024:.2f} MB/s\n", style="blue")
+      traffic_text.append(f"Total DL : {status.bytes_in / 1024 / 1024 / 1024:.2f} GB\n")
+      traffic_text.append(f"Total UL : {status.bytes_out / 1024 / 1024 / 1024:.2f} GB")
+      layout["traffic"].update(Panel(traffic_text, title="Traffic", border_style="white"))
+
+      return layout
+
+    with Live(console=console, screen=True, refresh_per_second=4) as live:
+      while True:
+        status = client.system.poll_extended_status()
+        live.update(generate_layout(status))
+        sleep(interval)
+
+  except AuthenticationError as e:
+    console.print(f"[red]❌ Authentication error:[/red] {e}")
+    raise typer.Exit(1)
+  except KeyboardInterrupt:
+    console.print("Stopped.")
+    raise typer.Exit(0)
   except Exception as e:
     handle_error(e)
     raise typer.Exit(1)
