@@ -384,6 +384,28 @@ class AlcatelClient:
         if token:
           self._default_headers["_TclRequestVerificationToken"] = token
           self._client.headers["_TclRequestVerificationToken"] = token
+          if self._async_client is not None:
+            self._async_client.headers["_TclRequestVerificationToken"] = token
+          return True
+        return False
+
+      return False
+    except Exception:
+      return False
+
+  async def _get_login_state_async(self) -> bool:
+    """Check if already logged in (async)"""
+    try:
+      result = await self._run_command_async("GetLoginState")
+      logged_in = result.get("State") == 1
+
+      if logged_in:
+        token = self._token_manager.get_token()
+        if token:
+          self._default_headers["_TclRequestVerificationToken"] = token
+          self._client.headers["_TclRequestVerificationToken"] = token
+          if self._async_client is not None:
+            self._async_client.headers["_TclRequestVerificationToken"] = token
           return True
         return False
 
@@ -423,6 +445,48 @@ class AlcatelClient:
       self._token_manager.save_token(encrypted_token)
       self._default_headers["_TclRequestVerificationToken"] = encrypted_token
       self._client.headers["_TclRequestVerificationToken"] = encrypted_token
+      if self._async_client is not None:
+        self._async_client.headers["_TclRequestVerificationToken"] = encrypted_token
+
+    except Exception as e:
+      if isinstance(e, AuthenticationError):
+        raise
+      raise AuthenticationError(f"Login failed: {str(e)}")
+
+  async def _login_async(self) -> None:
+    """Login to modem with admin credentials (async)"""
+    if not self._password:
+      raise AuthenticationError("Password is required for login")
+
+    try:
+      # Try unencrypted first (MW40V1 style)
+      try:
+        result = await self._run_command_async("Login", UserName="admin", Password=self._password)
+      except Exception:
+        # If that fails, try encrypted (HH72 style)
+        result = await self._run_command_async(
+          "Login",
+          UserName=encrypt_admin("admin"),
+          Password=encrypt_admin(self._password),
+        )
+
+      token = result["token"]
+
+      # Check if param0 and param1 exist (HH72 style encryption)
+      # If not, use token directly (MW40V1 style)
+      if "param0" in result and "param1" in result:
+        key = result["param0"]
+        iv = result["param1"]
+        encrypted_token = encrypt_token(token, key, iv)
+      else:
+        # MW40V1 and similar models use token directly
+        encrypted_token = str(token)
+
+      self._token_manager.save_token(encrypted_token)
+      self._default_headers["_TclRequestVerificationToken"] = encrypted_token
+      self._client.headers["_TclRequestVerificationToken"] = encrypted_token
+      if self._async_client is not None:
+        self._async_client.headers["_TclRequestVerificationToken"] = encrypted_token
 
     except Exception as e:
       if isinstance(e, AuthenticationError):
@@ -603,8 +667,8 @@ class AlcatelClient:
     """
     # Auto-login if password is set and not logged in
     if self._password:
-      if not self._get_login_state():
-        self._login()
+      if not await self._get_login_state_async():
+        await self._login_async()
 
     return await self._run_command_async(command, **params)
 
