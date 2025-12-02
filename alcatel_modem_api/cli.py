@@ -22,6 +22,7 @@ from typer import Option
 from . import AlcatelClient, AuthenticationError, UnsupportedModemError
 from .config import get_config_password, get_config_url, load_config, save_config
 from .constants import PUBLIC_VERBS, RESTRICTED_VERBS, get_network_type
+from .utils.diagnostics_models import DiagnosticReport
 from .utils.display import print_model_as_table, print_sms_list_as_table
 
 app = typer.Typer(
@@ -394,6 +395,7 @@ def run_command(  # type: ignore[no-untyped-def]
 def configure(  # type: ignore[no-untyped-def]
   url: Annotated[Optional[str], typer.Option("-u", "--url", help="Modem URL")] = None,
   password: Annotated[Optional[str], typer.Option("-p", "--password", help="Admin password (optional)")] = None,
+  save_password_unsafe: Annotated[bool, typer.Option("--save-password-unsafe", help="Save password to config file (not recommended)")] = False,
 ):
   """Configure default URL and password"""
   try:
@@ -409,19 +411,26 @@ def configure(  # type: ignore[no-untyped-def]
           console.print("  Password: [yellow]Not set[/yellow]")
       else:
         console.print("[yellow]No configuration found.[/yellow]")
-        console.print("  Use: alcatel configure -u <url> [-p <password>]")
+        console.print("  Use: alcatel configure -u <url> [--save-password-unsafe -p <password>]")
       return
 
     if url is None:
       url = get_config_url() or "http://192.168.1.1"
 
-    save_config(url, password)
+    # Only save password if explicitly requested with --save-password-unsafe flag
+    password_to_save = password if save_password_unsafe else None
+
+    save_config(url, password_to_save)
     console.print("[green]✅ Configuration saved[/green]")
     console.print(f"  URL: {url}")
-    if password:
-      console.print("  Password: [yellow]Saved (consider using environment variable instead)[/yellow]")
+    if password_to_save:
+      console.print("[yellow]⚠️  Password saved to config file (not recommended for production)[/yellow]")
+      console.print("  Consider using environment variables or passing password via CLI instead")
+    elif password:
+      console.print("[yellow]Password provided but not saved (use --save-password-unsafe to save)[/yellow]")
+      console.print("  Password will be used for this session only")
     else:
-      console.print("  Password: [yellow]Not saved (use -p to save, or pass via CLI)[/yellow]")
+      console.print("  Password: [yellow]Not saved (use --save-password-unsafe -p <password> to save)[/yellow]")
 
   except ImportError as e:
     console.print(f"[red]❌ Error:[/red] {e}")
@@ -443,14 +452,15 @@ def doctor(  # type: ignore[no-untyped-def]
   console.print("=" * 60)
   console.print()
 
-  diagnostics: dict[str, Any] = {
-    "library_version": "1.0.0",  # TODO: Get from __version__
-    "python_version": sys.version.split()[0],
-    "connection": {},
-    "modem_info": {},
-    "api_endpoints": {},
-    "errors": [],
-  }
+  # Initialize diagnostic report with Pydantic model for automatic masking
+  diagnostics = DiagnosticReport(
+    library_version="1.0.0",  # TODO: Get from __version__
+    python_version=sys.version.split()[0],
+    connection={},
+    modem_info={},
+    api_endpoints={},
+    errors=[],
+  )
 
   # Use config values if not provided
   if url is None:
@@ -458,8 +468,8 @@ def doctor(  # type: ignore[no-untyped-def]
   if password is None:
     password = get_config_password()
 
-  diagnostics["connection"]["url"] = url
-  diagnostics["connection"]["password_provided"] = password is not None
+  diagnostics.connection["url"] = url
+  diagnostics.connection["password_provided"] = password is not None
 
   try:
     console.print("[cyan]Testing connection...[/cyan]")
@@ -469,18 +479,18 @@ def doctor(  # type: ignore[no-untyped-def]
     try:
       system_info = client.system.get_info()
       status = client.system.get_status()
-      diagnostics["connection"]["status"] = "✅ Connected"
-      diagnostics["modem_info"]["model"] = system_info.get("DeviceName", status.device or "Unknown")
-      diagnostics["modem_info"]["firmware"] = system_info.get("SoftwareVersion", "Unknown")
-      diagnostics["modem_info"]["hardware"] = system_info.get("HardwareVersion", "Unknown")
+      diagnostics.connection["status"] = "✅ Connected"
+      diagnostics.modem_info["model"] = system_info.get("DeviceName", status.device or "Unknown")
+      diagnostics.modem_info["firmware"] = system_info.get("SoftwareVersion", "Unknown")
+      diagnostics.modem_info["hardware"] = system_info.get("HardwareVersion", "Unknown")
       console.print("  [green]✅ Connected to modem[/green]")
-      console.print(f"  Model: {diagnostics['modem_info']['model']}")
-      console.print(f"  Firmware: {diagnostics['modem_info']['firmware']}")
-      diagnostics["api_endpoints"]["/jrd/webapi"] = "✅ Accessible"
+      console.print(f"  Model: {diagnostics.modem_info['model']}")
+      console.print(f"  Firmware: {diagnostics.modem_info['firmware']}")
+      diagnostics.api_endpoints["/jrd/webapi"] = "✅ Accessible"
     except Exception as e:
-      diagnostics["connection"]["status"] = f"❌ Failed: {str(e)}"
-      diagnostics["errors"].append(f"Connection test failed: {str(e)}")
-      diagnostics["api_endpoints"]["/jrd/webapi"] = f"❌ Failed: {str(e)}"
+      diagnostics.connection["status"] = f"❌ Failed: {str(e)}"
+      diagnostics.errors.append(f"Connection test failed: {str(e)}")
+      diagnostics.api_endpoints["/jrd/webapi"] = f"❌ Failed: {str(e)}"
       console.print(f"  [red]❌ Connection failed: {e}[/red]")
 
     # Test authentication if password provided
@@ -490,20 +500,20 @@ def doctor(  # type: ignore[no-untyped-def]
       try:
         login_state = client._get_login_state()
         if login_state:
-          diagnostics["api_endpoints"]["authentication"] = "✅ Authenticated"
+          diagnostics.api_endpoints["authentication"] = "✅ Authenticated"
           console.print("  [green]✅ Authentication successful[/green]")
         else:
           try:
             client._login()
-            diagnostics["api_endpoints"]["authentication"] = "✅ Login successful"
+            diagnostics.api_endpoints["authentication"] = "✅ Login successful"
             console.print("  [green]✅ Login successful[/green]")
           except Exception as e:
-            diagnostics["api_endpoints"]["authentication"] = f"❌ Failed: {str(e)}"
-            diagnostics["errors"].append(f"Authentication failed: {str(e)}")
+            diagnostics.api_endpoints["authentication"] = f"❌ Failed: {str(e)}"
+            diagnostics.errors.append(f"Authentication failed: {str(e)}")
             console.print(f"  [red]❌ Authentication failed: {e}[/red]")
       except Exception as e:
-        diagnostics["api_endpoints"]["authentication"] = f"❌ Error: {str(e)}"
-        diagnostics["errors"].append(f"Authentication test error: {str(e)}")
+        diagnostics.api_endpoints["authentication"] = f"❌ Error: {str(e)}"
+        diagnostics.errors.append(f"Authentication test error: {str(e)}")
         console.print(f"  [yellow]⚠️  Authentication test error: {e}[/yellow]")
 
     # Test keyring availability
@@ -513,46 +523,39 @@ def doctor(  # type: ignore[no-untyped-def]
       from .utils.keyring_storage import KEYRING_AVAILABLE
 
       if KEYRING_AVAILABLE:
-        diagnostics["security"] = {"keyring": "✅ Available"}
+        diagnostics.security = {"keyring": "✅ Available"}
         console.print("  [green]✅ System keyring available[/green]")
       else:
-        diagnostics["security"] = {"keyring": "⚠️  Not available (using file storage)"}
+        diagnostics.security = {"keyring": "⚠️  Not available (using file storage)"}
         console.print("  [yellow]⚠️  System keyring not available (using file storage)[/yellow]")
     except Exception:
-      diagnostics["security"] = {"keyring": "❌ Not available"}
+      diagnostics.security = {"keyring": "❌ Not available"}
       console.print("  [yellow]⚠️  System keyring not available[/yellow]")
 
   except Exception as e:
-    diagnostics["errors"].append(f"Diagnostics failed: {str(e)}")
+    diagnostics.errors.append(f"Diagnostics failed: {str(e)}")
     console.print(f"  [red]❌ Diagnostics error: {e}[/red]")
 
-  # Generate report
+  # Generate report using Pydantic model's safe serialization
   console.print()
   console.print("[bold cyan]📋 Diagnostic Report[/bold cyan]")
   console.print("=" * 60)
 
-  # Redact sensitive information
-  report = diagnostics.copy()
-  if "password" in str(report):
-    report_str = str(report).replace(password or "", "********") if password else str(report)
-  else:
-    report_str = str(report)
+  # Use Pydantic model's safe dump which automatically masks sensitive fields
+  import json
 
-  # Remove IMEI and other sensitive data if present
-  import re
-
-  report_str = re.sub(r'"IMEI":\s*"[^"]+"', '"IMEI": "********"', report_str)
-  report_str = re.sub(r'"SerialNumber":\s*"[^"]+"', '"SerialNumber": "********"', report_str)
+  report_dict = diagnostics.model_dump_safe()
+  report_json = json.dumps(report_dict, indent=2, ensure_ascii=False)
 
   console.print()
   console.print("[yellow]Copy the following for GitHub issues:[/yellow]")
   console.print()
   console.print("```json")
-  console.print(report_str)
+  console.print(report_json)
   console.print("```")
   console.print()
 
-  if diagnostics["errors"]:
+  if diagnostics.errors:
     console.print("[red]⚠️  Issues detected. Please include this report when opening an issue.[/red]")
   else:
     console.print("[green]✅ All checks passed![/green]")

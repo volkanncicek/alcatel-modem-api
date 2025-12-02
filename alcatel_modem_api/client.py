@@ -12,6 +12,7 @@ from typing import Any, Protocol, Union
 
 import httpx
 
+from .auth import EncryptedAuthStrategy, detect_auth_strategy
 from .exceptions import (
   AlcatelAPIError,
   AlcatelConnectionError,
@@ -23,7 +24,6 @@ from .exceptions import (
   UnsupportedModemError,
 )
 from .utils.diagnostics import detect_modem_brand
-from .utils.encryption import encrypt_token
 from .utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -178,6 +178,8 @@ class AlcatelClient:
     token_storage: Union[TokenStorageProtocol, None] = None,
     connection_limits: Union[httpx.Limits, None] = None,
     encrypt_admin_key: Union[str, None] = None,
+    client: Union[httpx.Client, None] = None,
+    async_client: Union[httpx.AsyncClient, None] = None,
   ):
     """
     Initialize Alcatel Modem API client
@@ -190,6 +192,8 @@ class AlcatelClient:
         token_storage: Custom token storage implementation (optional)
         connection_limits: Custom httpx.Limits for connection pooling (optional)
         encrypt_admin_key: Custom encryption key for admin credentials (optional)
+        client: Custom httpx.Client instance (optional, allows control of proxies, certs, etc.)
+        async_client: Custom httpx.AsyncClient instance (optional, allows control of proxies, certs, etc.)
     """
     self._url = url.rstrip("/")
     self._password = password
@@ -197,6 +201,9 @@ class AlcatelClient:
 
     # Store encryption key override if provided
     self._encrypt_admin_key = encrypt_admin_key
+
+    # Authentication strategy (will be detected on first login)
+    self._auth_strategy = None
 
     # Token storage: use custom implementation if provided, otherwise default to file-based storage
     if token_storage is not None:
@@ -218,19 +225,35 @@ class AlcatelClient:
     if token:
       self._default_headers["_TclRequestVerificationToken"] = token
 
-    # Create httpx clients with retry logic and connection pool limits
-    # Limits prevent resource exhaustion when creating many client instances
-    self._limits = connection_limits or httpx.Limits(max_keepalive_connections=5, max_connections=10)
-    retry_transport = httpx.HTTPTransport(retries=3)
-    self._client = httpx.Client(
-      timeout=timeout,
-      transport=retry_transport,
-      headers=self._default_headers.copy(),
-      limits=self._limits,
-    )
+    # Use provided clients or create new ones
+    if client is not None:
+      # Use provided client, but update headers
+      self._client = client
+      # Merge default headers with existing client headers
+      self._client.headers.update(self._default_headers)
+      self._client_owned = False  # Don't close client we didn't create
+    else:
+      # Create httpx client with retry logic and connection pool limits
+      # Limits prevent resource exhaustion when creating many client instances
+      self._limits = connection_limits or httpx.Limits(max_keepalive_connections=5, max_connections=10)
+      retry_transport = httpx.HTTPTransport(retries=3)
+      self._client = httpx.Client(
+        timeout=timeout,
+        transport=retry_transport,
+        headers=self._default_headers.copy(),
+        limits=self._limits,
+      )
+      self._client_owned = True  # We own this client, should close it
 
-    # Async client will be created on first use
-    self._async_client: Union[httpx.AsyncClient, None] = None
+    # Async client will be created on first use or use provided one
+    if async_client is not None:
+      self._async_client = async_client
+      # Merge default headers with existing client headers
+      self._async_client.headers.update(self._default_headers)
+      self._async_client_owned = False  # Don't close client we didn't create
+    else:
+      self._async_client: Union[httpx.AsyncClient, None] = None
+      self._async_client_owned = True  # We own async client when we create it
 
     # Initialize endpoint namespaces
     from .endpoints.device import DeviceEndpoint
@@ -297,7 +320,7 @@ class AlcatelClient:
       try:
         root_resp = self._client.get(self._url, timeout=2)
         detected_brand = detect_modem_brand(root_resp)
-      except Exception:
+      except Exception:  # nosec B110
         pass  # Ignore errors when checking root page
 
     self._raise_unsupported_modem_error(resp, detected_brand)
@@ -324,7 +347,7 @@ class AlcatelClient:
         if self._async_client is not None:
           root_resp = await self._async_client.get(self._url, timeout=2)
           detected_brand = detect_modem_brand(root_resp)
-      except Exception:
+      except Exception:  # nosec B110
         pass  # Ignore errors when checking root page
 
     self._raise_unsupported_modem_error(resp, detected_brand)
@@ -365,48 +388,30 @@ class AlcatelClient:
       raise AuthenticationError("Password is required for login")
 
     try:
-      # Try unencrypted first (MW40V1 style)
+      # Detect or use cached auth strategy
+      if self._auth_strategy is None:
+        self._auth_strategy = detect_auth_strategy(self)
+
+      # Try encrypted strategy first (most common for newer models)
+      # If it fails, fall back to legacy strategy
       try:
-        result = self._run_command("Login", UserName="admin", Password=self._password)
+        result = self._auth_strategy.login(self, "admin", self._password, self._encrypt_admin_key)
       except Exception:
-        # If that fails, try encrypted (HH72 style)
-        # Use custom encryption key if provided, otherwise use default
-        from .utils.encryption import encrypt_admin as default_encrypt_admin
+        # Fallback to legacy strategy if encrypted fails
+        from .auth.strategies import LegacyAuthStrategy
 
-        if self._encrypt_admin_key:
-          # Create a custom encrypt function with the provided key
-          encrypt_key = self._encrypt_admin_key
+        legacy_strategy = LegacyAuthStrategy()
+        try:
+          result = legacy_strategy.login(self, "admin", self._password, self._encrypt_admin_key)
+          self._auth_strategy = legacy_strategy  # Cache successful strategy
+        except Exception:
+          # If legacy also fails, try encrypted one more time with default key
+          encrypted_strategy = EncryptedAuthStrategy()
+          result = encrypted_strategy.login(self, "admin", self._password, self._encrypt_admin_key)
+          self._auth_strategy = encrypted_strategy  # Cache successful strategy
 
-          def custom_encrypt_admin(value: str) -> str:
-            encoded = bytearray()
-            for index, char in enumerate(value):
-              value_code = ord(char)
-              key_code = ord(encrypt_key[index % len(encrypt_key)])
-              encoded.append((240 & key_code) | ((15 & value_code) ^ (15 & key_code)))
-              encoded.append((240 & key_code) | ((value_code >> 4) ^ (15 & key_code)))
-            return encoded.decode()
-
-          encrypt_func = custom_encrypt_admin
-        else:
-          encrypt_func = default_encrypt_admin
-
-        result = self._run_command(
-          "Login",
-          UserName=encrypt_func("admin"),
-          Password=encrypt_func(self._password),
-        )
-
-      token = result["token"]
-
-      # Check if param0 and param1 exist (HH72 style encryption)
-      # If not, use token directly (MW40V1 style)
-      if "param0" in result and "param1" in result:
-        key = result["param0"]
-        iv = result["param1"]
-        encrypted_token = encrypt_token(token, key, iv)
-      else:
-        # MW40V1 and similar models use token directly
-        encrypted_token = str(token)
+      # Process token according to strategy
+      encrypted_token = self._auth_strategy.process_token(result)
 
       self._token_manager.save_token(encrypted_token)
       self._default_headers["_TclRequestVerificationToken"] = encrypted_token
@@ -425,37 +430,30 @@ class AlcatelClient:
       raise AuthenticationError("Password is required for login")
 
     try:
+      # Detect or use cached auth strategy
+      if self._auth_strategy is None:
+        self._auth_strategy = detect_auth_strategy(self)
+
+      # Try encrypted strategy first (most common for newer models)
+      # If it fails, fall back to legacy strategy
       try:
-        result = await self._run_command_async("Login", UserName="admin", Password=self._password)
+        result = await self._auth_strategy.login_async(self, "admin", self._password, self._encrypt_admin_key)
       except Exception:
-        # Use custom encryption key if provided, otherwise use default
-        from .utils.encryption import encrypt_admin as default_encrypt_admin
+        # Fallback to legacy strategy if encrypted fails
+        from .auth.strategies import LegacyAuthStrategy
 
-        if self._encrypt_admin_key:
-          # Create a custom encrypt function with the provided key
-          encrypt_key = self._encrypt_admin_key
+        legacy_strategy = LegacyAuthStrategy()
+        try:
+          result = await legacy_strategy.login_async(self, "admin", self._password, self._encrypt_admin_key)
+          self._auth_strategy = legacy_strategy  # Cache successful strategy
+        except Exception:
+          # If legacy also fails, try encrypted one more time with default key
+          encrypted_strategy = EncryptedAuthStrategy()
+          result = await encrypted_strategy.login_async(self, "admin", self._password, self._encrypt_admin_key)
+          self._auth_strategy = encrypted_strategy  # Cache successful strategy
 
-          def custom_encrypt_admin(value: str) -> str:
-            encoded = bytearray()
-            for index, char in enumerate(value):
-              value_code = ord(char)
-              key_code = ord(encrypt_key[index % len(encrypt_key)])
-              encoded.append((240 & key_code) | ((15 & value_code) ^ (15 & key_code)))
-              encoded.append((240 & key_code) | ((value_code >> 4) ^ (15 & key_code)))
-            return encoded.decode()
-
-          encrypt_func = custom_encrypt_admin
-        else:
-          encrypt_func = default_encrypt_admin
-
-        result = await self._run_command_async("Login", UserName=encrypt_func("admin"), Password=encrypt_func(self._password))
-
-      token = result["token"]
-
-      if "param0" in result and "param1" in result:
-        encrypted_token = encrypt_token(token, result["param0"], result["param1"])
-      else:
-        encrypted_token = str(token)
+      # Process token according to strategy
+      encrypted_token = self._auth_strategy.process_token(result)
 
       self._token_manager.save_token(encrypted_token)
       self._default_headers["_TclRequestVerificationToken"] = encrypted_token
@@ -560,17 +558,19 @@ class AlcatelClient:
         AlcatelTimeoutError: If request times out
         AuthenticationError: If authentication fails
     """
-    # Create async client if not exists
+    # Create async client if not exists and not provided
     if self._async_client is None:
       # Limits prevent resource exhaustion when creating many client instances
-      # Use the same limits as sync client
+      # Use the same limits as sync client (if we created sync client)
+      limits = getattr(self, "_limits", httpx.Limits(max_keepalive_connections=5, max_connections=10))
       retry_transport = httpx.AsyncHTTPTransport(retries=3)
       self._async_client = httpx.AsyncClient(
         timeout=self._timeout,
         transport=retry_transport,
         headers=self._default_headers.copy(),
-        limits=self._limits,
+        limits=limits,
       )
+      self._async_client_owned = True
 
     # Handle empty params - use None instead of empty dict
     params_value = params if params else None
@@ -677,15 +677,14 @@ class AlcatelClient:
       del self._async_client.headers["_TclRequestVerificationToken"]
 
   def close(self) -> None:
-    """Close HTTP clients"""
-    self._client.close()
-    if self._async_client:
-      # Note: async client should be closed with await, but this is for sync cleanup
-      pass
+    """Close HTTP clients (only if we own them)"""
+    if getattr(self, "_client_owned", True):
+      self._client.close()
+    # Note: async client should be closed with await aclose()
 
   async def aclose(self) -> None:
-    """Close async HTTP client"""
-    if self._async_client:
+    """Close async HTTP client (only if we own it)"""
+    if self._async_client and getattr(self, "_async_client_owned", True):
       await self._async_client.aclose()
 
   def __enter__(self) -> "AlcatelClient":

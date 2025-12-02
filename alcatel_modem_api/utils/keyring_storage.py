@@ -8,16 +8,12 @@ import logging
 from pathlib import Path
 from typing import Protocol, Union
 
+# Keyring is now a core dependency
+import keyring  # type: ignore[import-not-found]
+
 logger = logging.getLogger(__name__)
 
-# Try to import keyring, but make it optional
-try:
-  import keyring  # type: ignore[import-not-found]
-
-  KEYRING_AVAILABLE = True
-except ImportError:
-  KEYRING_AVAILABLE = False
-  keyring = None  # type: ignore[assignment, unused-ignore]
+KEYRING_AVAILABLE = True
 
 
 class TokenStorageProtocol(Protocol):
@@ -57,17 +53,14 @@ class KeyringTokenStorage:
       session_file = str(home / ".alcatel_modem_session")
 
     self.session_file = session_file
-    self.use_keyring = use_keyring and KEYRING_AVAILABLE
+    self.use_keyring = use_keyring
     self.service_name = "alcatel-modem-api"
     self.username = "session-token"
 
     if self.use_keyring:
       logger.debug("Using system keyring for token storage")
     else:
-      if not KEYRING_AVAILABLE:
-        logger.debug("Keyring not available, falling back to file storage")
-      else:
-        logger.debug("Keyring disabled, using file storage")
+      logger.debug("Keyring disabled, using file storage")
 
   def save_token(self, token: str) -> None:
     """Save token to keyring (with file fallback)"""

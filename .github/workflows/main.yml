@@ -45,6 +45,17 @@ jobs:
         run: |
           uv run mypy alcatel_modem_api
 
+      - name: Run Bandit security scan
+        run: |
+          uv pip install bandit[toml]
+          uv run bandit -c pyproject.toml -r alcatel_modem_api
+
+      - name: Scan dependencies for vulnerabilities
+        uses: google/osv-scanner-action@v1
+        with:
+          scan-args: '--lockfile uv.lock --format json --output osv-report.json'
+          fail-on-vulnerability: true
+
       - name: Run tests
         run: |
           uv run pytest tests/ -v --cov=alcatel_modem_api --cov-report=xml

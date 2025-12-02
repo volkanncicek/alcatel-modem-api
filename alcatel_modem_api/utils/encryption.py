@@ -16,11 +16,15 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 # This is a hardware-specific requirement and cannot be changed without breaking
 # compatibility with Alcatel modems.
 #
+# SECURITY NOTE: This key is public knowledge, extracted from client-side JavaScript,
+# and provides obfuscation, not security. It is required for compatibility with
+# Alcatel modem firmware and cannot be changed.
+#
 # Verified against firmware versions:
 # - HH72_V1.0.0
 # - MW40_V2.0
 # - HH40V (various versions)
-ENCRYPT_ADMIN_KEY = "e5dl12XYVggihggafXWf0f2YSf2Xngd1"
+ENCRYPT_ADMIN_KEY = "e5dl12XYVggihggafXWf0f2YSf2Xngd1"  # nosec B105
 
 
 def encrypt_admin(value: str) -> str:
