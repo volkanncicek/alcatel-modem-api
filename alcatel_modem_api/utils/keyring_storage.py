@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Protocol, Union
 
 # Keyring is now a core dependency
-import keyring  # type: ignore[import-not-found]
+import keyring
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +88,7 @@ class KeyringTokenStorage:
         token = keyring.get_password(self.service_name, self.username)
         if token:
           logger.debug("Token retrieved from system keyring")
-          return token  # type: ignore[no-any-return]
+          return token
       except Exception as e:
         logger.debug(f"Failed to get token from keyring, trying file: {e}")
 

@@ -84,11 +84,11 @@ class LegacyAuthStrategy(AuthStrategy):
 
   def login(self, client: Any, username: str, password: str, encrypt_key: Optional[str] = None) -> dict[str, Any]:
     """Login with plain text credentials (sync)"""
-    return client._run_command("Login", UserName=username, Password=password)
+    return client._run_command("Login", UserName=username, Password=password)  # type: ignore[no-any-return]
 
   async def login_async(self, client: Any, username: str, password: str, encrypt_key: Optional[str] = None) -> dict[str, Any]:
     """Login with plain text credentials (async)"""
-    return await client._run_command_async("Login", UserName=username, Password=password)
+    return await client._run_command_async("Login", UserName=username, Password=password)  # type: ignore[no-any-return]
 
   def process_token(self, login_result: dict[str, Any]) -> str:
     """Use token directly without encryption"""
@@ -106,11 +106,11 @@ class TokenAuthStrategy(AuthStrategy):
 
   def login(self, client: Any, username: str, password: str, encrypt_key: Optional[str] = None) -> dict[str, Any]:
     """Login with plain text credentials (sync)"""
-    return client._run_command("Login", UserName=username, Password=password)
+    return client._run_command("Login", UserName=username, Password=password)  # type: ignore[no-any-return]
 
   async def login_async(self, client: Any, username: str, password: str, encrypt_key: Optional[str] = None) -> dict[str, Any]:
     """Login with plain text credentials (async)"""
-    return await client._run_command_async("Login", UserName=username, Password=password)
+    return await client._run_command_async("Login", UserName=username, Password=password)  # type: ignore[no-any-return]
 
   def process_token(self, login_result: dict[str, Any]) -> str:
     """Use token directly without encryption"""
@@ -143,7 +143,7 @@ class EncryptedAuthStrategy(AuthStrategy):
     else:
       encrypt_func = encrypt_admin
 
-    return client._run_command("Login", UserName=encrypt_func(username), Password=encrypt_func(password))
+    return client._run_command("Login", UserName=encrypt_func(username), Password=encrypt_func(password))  # type: ignore[no-any-return]
 
   async def login_async(self, client: Any, username: str, password: str, encrypt_key: Optional[str] = None) -> dict[str, Any]:
     """Login with encrypted credentials (async)"""
@@ -163,7 +163,7 @@ class EncryptedAuthStrategy(AuthStrategy):
     else:
       encrypt_func = encrypt_admin
 
-    return await client._run_command_async("Login", UserName=encrypt_func(username), Password=encrypt_func(password))
+    return await client._run_command_async("Login", UserName=encrypt_func(username), Password=encrypt_func(password))  # type: ignore[no-any-return]
 
   def process_token(self, login_result: dict[str, Any]) -> str:
     """Encrypt token using param0 and param1 from login response"""

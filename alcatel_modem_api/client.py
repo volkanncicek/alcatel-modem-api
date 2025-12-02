@@ -8,11 +8,11 @@ import os
 import platform
 import stat
 from pathlib import Path
-from typing import Any, Protocol, Union
+from typing import Any, Literal, Protocol, Union
 
 import httpx
 
-from .auth import EncryptedAuthStrategy, detect_auth_strategy
+from .auth import AuthStrategy, EncryptedAuthStrategy, detect_auth_strategy
 from .exceptions import (
   AlcatelAPIError,
   AlcatelConnectionError,
@@ -203,7 +203,7 @@ class AlcatelClient:
     self._encrypt_admin_key = encrypt_admin_key
 
     # Authentication strategy (will be detected on first login)
-    self._auth_strategy = None
+    self._auth_strategy: Union[AuthStrategy, None] = None
 
     # Token storage: use custom implementation if provided, otherwise default to file-based storage
     if token_storage is not None:
@@ -246,13 +246,14 @@ class AlcatelClient:
       self._client_owned = True  # We own this client, should close it
 
     # Async client will be created on first use or use provided one
+    self._async_client: Union[httpx.AsyncClient, None] = None
     if async_client is not None:
       self._async_client = async_client
       # Merge default headers with existing client headers
       self._async_client.headers.update(self._default_headers)
       self._async_client_owned = False  # Don't close client we didn't create
     else:
-      self._async_client: Union[httpx.AsyncClient, None] = None
+      self._async_client = None
       self._async_client_owned = True  # We own async client when we create it
 
     # Initialize endpoint namespaces
@@ -392,6 +393,9 @@ class AlcatelClient:
       if self._auth_strategy is None:
         self._auth_strategy = detect_auth_strategy(self)
 
+      # Type narrowing: mypy now knows _auth_strategy is not None
+      assert self._auth_strategy is not None
+
       # Try encrypted strategy first (most common for newer models)
       # If it fails, fall back to legacy strategy
       try:
@@ -433,6 +437,9 @@ class AlcatelClient:
       # Detect or use cached auth strategy
       if self._auth_strategy is None:
         self._auth_strategy = detect_auth_strategy(self)
+
+      # Type narrowing: mypy now knows _auth_strategy is not None
+      assert self._auth_strategy is not None
 
       # Try encrypted strategy first (most common for newer models)
       # If it fails, fall back to legacy strategy
@@ -691,7 +698,7 @@ class AlcatelClient:
     """Context manager entry (sync)"""
     return self
 
-  def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
+  def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> Literal[False]:
     """Context manager exit (sync)"""
     self.close()
     return False  # Explicitly propagate exceptions
