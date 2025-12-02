@@ -8,7 +8,7 @@ from .endpoints import DeviceEndpoint, NetworkEndpoint, SMSEndpoint, SystemEndpo
 from .exceptions import (
   AlcatelAPIError,
   AlcatelConnectionError,
-  AlcatelException,
+  AlcatelError,
   AlcatelFeatureNotSupportedError,
   AlcatelSimMissingError,
   AlcatelSystemBusyError,
@@ -21,8 +21,8 @@ from .models import ConnectionState, ExtendedStatus, NetworkInfo, SMSMessage, Sy
 __version__ = "1.0.0"
 
 __all__ = [
-    # Main client class
-    "AlcatelClient",
+  # Main client class
+  "AlcatelClient",
   # Endpoints
   "SMSEndpoint",
   "NetworkEndpoint",
@@ -30,7 +30,7 @@ __all__ = [
   "DeviceEndpoint",
   "SystemEndpoint",
   # Exceptions
-  "AlcatelException",
+  "AlcatelError",
   "AlcatelConnectionError",
   "AlcatelAPIError",
   "AlcatelTimeoutError",

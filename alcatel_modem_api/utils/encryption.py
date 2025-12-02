@@ -66,4 +66,3 @@ def encrypt_token(token: str, param0: str, param1: str) -> str:
   encoded = b64encode(ciphertext).decode()
 
   return encoded
-

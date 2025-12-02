@@ -256,4 +256,3 @@ class NetworkEndpoint:
         MAC address dictionary
     """
     return await self._client.run_async("GetWanCurrentMacAddr")
-

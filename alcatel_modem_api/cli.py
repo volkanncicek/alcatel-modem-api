@@ -540,6 +540,7 @@ def doctor(
     console.print("[cyan]Checking security features...[/cyan]")
     try:
       from .utils.keyring_storage import KEYRING_AVAILABLE
+
       if KEYRING_AVAILABLE:
         diagnostics["security"] = {"keyring": "✅ Available"}
         console.print("  [green]✅ System keyring available[/green]")
@@ -568,6 +569,7 @@ def doctor(
 
   # Remove IMEI and other sensitive data if present
   import re
+
   report_str = re.sub(r'"IMEI":\s*"[^"]+"', '"IMEI": "********"', report_str)
   report_str = re.sub(r'"SerialNumber":\s*"[^"]+"', '"SerialNumber": "********"', report_str)
 

@@ -29,6 +29,7 @@ def test_optimistic_login_flow(mock_api_with_password, valid_aes_key, valid_aes_
   def response_handler(request):
     call_count["count"] += 1
     import json
+
     # Access request body - use read() for httpx Request objects
     try:
       content = request.read() if hasattr(request, "read") else (request.content if hasattr(request, "content") else b"")

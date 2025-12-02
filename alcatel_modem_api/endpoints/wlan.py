@@ -172,4 +172,3 @@ class WLANEndpoint:
         WPS connection state dictionary
     """
     return await self._client.run_async("GetWPSConnectionState")
-

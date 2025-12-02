@@ -303,4 +303,3 @@ class SystemEndpoint:
     await self.send_ussd_async(code, ussd_type)
     await asyncio.sleep(wait_seconds)
     return await self.get_ussd_result_async()
-

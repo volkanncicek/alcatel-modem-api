@@ -4,7 +4,6 @@ Handles HTTP requests, authentication, retry logic, and token management
 """
 
 import json
-import logging
 import os
 import platform
 import stat
@@ -256,6 +255,7 @@ class AlcatelClient:
       # Try to use keyring storage with file fallback
       try:
         from .utils.keyring_storage import KeyringTokenStorage
+
         self._token_manager = KeyringTokenStorage(session_file, use_keyring=True)
       except (ImportError, Exception):
         # Fallback to file storage if keyring not available or fails
@@ -388,7 +388,7 @@ class AlcatelClient:
     """Check if already logged in"""
     try:
       result = self._run_command("GetLoginState")
-      if result.get("State") == 1: # 1 = logged in, 0 = logged out
+      if result.get("State") == 1:  # 1 = logged in, 0 = logged out
         token = self._token_manager.get_token()
         if token:
           self._default_headers["_TclRequestVerificationToken"] = token

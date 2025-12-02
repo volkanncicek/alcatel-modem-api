@@ -3,25 +3,25 @@ Exception classes for Alcatel Modem API
 """
 
 
-class AlcatelException(Exception):
+class AlcatelError(Exception):
   """Base exception for all Alcatel Modem API errors"""
 
   pass
 
 
-class AlcatelConnectionError(AlcatelException):
+class AlcatelConnectionError(AlcatelError):
   """Raised when connection to modem fails"""
 
   pass
 
 
-class AlcatelAPIError(AlcatelException):
+class AlcatelAPIError(AlcatelError):
   """Raised when API returns an error"""
 
   def __init__(self, message: str, error_code: int | str | None = None):
     """
     Initialize API error
-    
+
     Args:
         message: Error message
         error_code: Optional error code from modem
@@ -30,19 +30,19 @@ class AlcatelAPIError(AlcatelException):
     self.error_code = error_code
 
 
-class AlcatelTimeoutError(AlcatelException):
+class AlcatelTimeoutError(AlcatelError):
   """Raised when request times out"""
 
   pass
 
 
-class AuthenticationError(AlcatelException):
+class AuthenticationError(AlcatelError):
   """Raised when authentication fails"""
 
   pass
 
 
-class UnsupportedModemError(AlcatelException):
+class UnsupportedModemError(AlcatelError):
   """Raised when the modem is not an Alcatel modem or doesn't support the Alcatel API"""
 
   pass

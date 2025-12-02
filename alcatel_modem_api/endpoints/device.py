@@ -179,4 +179,3 @@ class DeviceEndpoint:
         Device default rights dictionary
     """
     return await self._client.run_async("GetDeviceDefaultRight")
-

@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 # Try to import keyring, but make it optional
 try:
   import keyring
+
   KEYRING_AVAILABLE = True
 except ImportError:
   KEYRING_AVAILABLE = False
@@ -38,7 +39,7 @@ class TokenStorageProtocol(Protocol):
 class KeyringTokenStorage:
   """
   Token storage using system keyring with file fallback
-  
+
   Uses keyring service name: "alcatel-modem-api"
   Uses keyring username: "session-token"
   """
@@ -46,7 +47,7 @@ class KeyringTokenStorage:
   def __init__(self, session_file: str | None = None, use_keyring: bool = True):
     """
     Initialize keyring-based token storage
-    
+
     Args:
         session_file: Path to fallback session file (default: ~/.alcatel_modem_session)
         use_keyring: Whether to attempt using keyring (default: True)
@@ -54,12 +55,12 @@ class KeyringTokenStorage:
     if session_file is None:
       home = Path.home()
       session_file = str(home / ".alcatel_modem_session")
-    
+
     self.session_file = session_file
     self.use_keyring = use_keyring and KEYRING_AVAILABLE
     self.service_name = "alcatel-modem-api"
     self.username = "session-token"
-    
+
     if self.use_keyring:
       logger.debug("Using system keyring for token storage")
     else:
@@ -78,7 +79,7 @@ class KeyringTokenStorage:
       except Exception as e:
         logger.warning(f"Failed to save token to keyring, falling back to file: {e}")
         # Fall through to file storage
-    
+
     # Fallback to file storage
     try:
       with open(self.session_file, "w") as f:
@@ -97,7 +98,7 @@ class KeyringTokenStorage:
           return token
       except Exception as e:
         logger.debug(f"Failed to get token from keyring, trying file: {e}")
-    
+
     # Fallback to file storage
     try:
       if Path(self.session_file).exists():
@@ -108,7 +109,7 @@ class KeyringTokenStorage:
             return token
     except Exception as e:
       logger.debug(f"Could not restore token from file: {e}")
-    
+
     return ""
 
   def clear_token(self) -> None:
@@ -119,7 +120,7 @@ class KeyringTokenStorage:
         logger.debug("Token cleared from system keyring")
       except Exception as e:
         logger.debug(f"Could not clear token from keyring (may not exist): {e}")
-    
+
     # Also clear file
     try:
       if Path(self.session_file).exists():
@@ -127,4 +128,3 @@ class KeyringTokenStorage:
         logger.debug(f"Token file removed: {self.session_file}")
     except Exception as e:
       logger.debug(f"Could not remove token file: {e}")
-
