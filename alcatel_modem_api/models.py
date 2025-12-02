@@ -8,16 +8,61 @@ from typing import Any, Union
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
+def coerce_int_or_none(v: Any) -> Union[int, None]:
+  """
+  Coerce value to int or None
+  Handles empty strings, "N/A", None, and invalid values
+  """
+  if v is None:
+    return None
+  if isinstance(v, str):
+    v = v.strip()
+    if v == "" or v.upper() in ("N/A", "NA", "NULL", "NONE"):
+      return None
+    try:
+      return int(v)
+    except (ValueError, TypeError):
+      return None
+  if isinstance(v, (int, float)):
+    value = int(v)
+    # Common sentinel values that mean "not available"
+    if value in (-999, -1, 0) and v != 0:  # Allow 0 as valid
+      return None
+    return value
+  return None
+
+
+def coerce_str_or_none(v: Any) -> Union[str, None]:
+  """
+  Coerce value to str or None
+  Handles empty strings, "N/A", None
+  """
+  if v is None:
+    return None
+  if isinstance(v, str):
+    v = v.strip()
+    if v == "" or v.upper() in ("N/A", "NA", "NULL", "NONE"):
+      return None
+    return v
+  return str(v) if v else None
+
+
 class SystemStatus(BaseModel):
   """System status information"""
 
   connection_status: int = Field(alias="ConnectionStatus", default=0)
   signal_strength: int = Field(alias="SignalStrength", default=0)
-  network_name: Union[str, None] = Field(alias="NetworkName", default=None)
+  network_name: Union[str, None] = Field(alias="NetworkName", default=None, validate_default=True)
   network_type: int = Field(alias="NetworkType", default=0)
-  imei: Union[str, None] = Field(alias="IMEI", default=None)
-  iccid: Union[str, None] = Field(alias="ICCID", default=None)
-  device: Union[str, None] = Field(alias="DeviceName", default=None)
+  imei: Union[str, None] = Field(alias="IMEI", default=None, validate_default=True)
+  iccid: Union[str, None] = Field(alias="ICCID", default=None, validate_default=True)
+  device: Union[str, None] = Field(alias="DeviceName", default=None, validate_default=True)
+
+  @field_validator("network_name", "imei", "iccid", "device", mode="before")
+  @classmethod
+  def validate_string_fields(cls, v: Any) -> Union[str, None]:
+    """Normalize string fields, converting empty strings and N/A to None"""
+    return coerce_str_or_none(v)
 
   @classmethod
   def from_dict(cls, data: dict[str, Any]) -> "SystemStatus":
@@ -38,15 +83,27 @@ class ExtendedStatus(BaseModel):
   bytes_out: int = Field(default=0)
   bytes_in_rate: int = Field(default=0)
   bytes_out_rate: int = Field(default=0)
-  ipv4_addr: Union[str, None] = Field(default=None)
-  ipv6_addr: Union[str, None] = Field(default=None)
-  network_name: Union[str, None] = Field(default=None)
+  ipv4_addr: Union[str, None] = Field(default=None, validate_default=True)
+  ipv6_addr: Union[str, None] = Field(default=None, validate_default=True)
+  network_name: Union[str, None] = Field(default=None, validate_default=True)
   network_type: int = Field(default=0)
   strength: int = Field(default=0)
-  rssi: Union[int, None] = Field(default=None)
-  rsrp: Union[int, None] = Field(default=None)
-  sinr: Union[int, None] = Field(default=None)
-  rsrq: Union[int, None] = Field(default=None)
+  rssi: Union[int, None] = Field(default=None, validate_default=True)
+  rsrp: Union[int, None] = Field(default=None, validate_default=True)
+  sinr: Union[int, None] = Field(default=None, validate_default=True)
+  rsrq: Union[int, None] = Field(default=None, validate_default=True)
+
+  @field_validator("ipv4_addr", "ipv6_addr", "network_name", mode="before")
+  @classmethod
+  def validate_string_fields(cls, v: Any) -> Union[str, None]:
+    """Normalize string fields, converting empty strings and N/A to None"""
+    return coerce_str_or_none(v)
+
+  @field_validator("rssi", "rsrp", "sinr", "rsrq", mode="before")
+  @classmethod
+  def validate_signal_metrics(cls, v: Any) -> Union[int, None]:
+    """Convert signal metrics to int or None, handling empty strings and N/A"""
+    return coerce_int_or_none(v)
 
   @classmethod
   def from_dict(cls, data: dict[str, Any]) -> "ExtendedStatus":
@@ -104,13 +161,8 @@ class NetworkInfo(BaseModel):
   @field_validator("rssi", "rsrp", "sinr", "rsrq", mode="before")
   @classmethod
   def validate_signal_metric(cls, v: Any) -> Union[int, None]:
-    """Convert signal metrics to int or None"""
-    if v is None:
-      return None
-    if isinstance(v, (int, float)):
-      value = int(v)
-      return value if value != -999 else None
-    return None
+    """Convert signal metrics to int or None, handling empty strings and N/A"""
+    return coerce_int_or_none(v)
 
   @classmethod
   def from_dict(cls, data: dict[str, Any]) -> "NetworkInfo":
@@ -146,8 +198,14 @@ class ConnectionState(BaseModel):
   bytes_out: int = Field(alias="UlBytes", default=0)
   bytes_in_rate: int = Field(alias="DlRate", default=0)
   bytes_out_rate: int = Field(alias="UlRate", default=0)
-  ipv4_addr: Union[str, None] = Field(alias="IPv4Adrress", default=None)
-  ipv6_addr: Union[str, None] = Field(alias="IPv6Adrress", default=None)
+  ipv4_addr: Union[str, None] = Field(alias="IPv4Adrress", default=None, validate_default=True)
+  ipv6_addr: Union[str, None] = Field(alias="IPv6Adrress", default=None, validate_default=True)
+
+  @field_validator("ipv4_addr", "ipv6_addr", mode="before")
+  @classmethod
+  def validate_string_fields(cls, v: Any) -> Union[str, None]:
+    """Normalize string fields, converting empty strings and N/A to None"""
+    return coerce_str_or_none(v)
 
   @model_validator(mode="before")
   @classmethod

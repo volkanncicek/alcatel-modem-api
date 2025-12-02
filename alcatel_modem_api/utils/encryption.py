@@ -15,6 +15,11 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 # credentials before sending them to the modem's API endpoint.
 # This is a hardware-specific requirement and cannot be changed without breaking
 # compatibility with Alcatel modems.
+#
+# Verified against firmware versions:
+# - HH72_V1.0.0
+# - MW40_V2.0
+# - HH40V (various versions)
 ENCRYPT_ADMIN_KEY = "e5dl12XYVggihggafXWf0f2YSf2Xngd1"
 
 

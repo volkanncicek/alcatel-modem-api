@@ -211,12 +211,15 @@ class AlcatelClient:
     if token:
       self._default_headers["_TclRequestVerificationToken"] = token
 
-    # Create httpx clients with retry logic
+    # Create httpx clients with retry logic and connection pool limits
+    # Limits prevent resource exhaustion when creating many client instances
+    limits = httpx.Limits(max_keepalive_connections=5, max_connections=10)
     retry_transport = httpx.HTTPTransport(retries=3)
     self._client = httpx.Client(
       timeout=timeout,
       transport=retry_transport,
       headers=self._default_headers.copy(),
+      limits=limits,
     )
 
     # Async client will be created on first use
@@ -512,11 +515,14 @@ class AlcatelClient:
     """
     # Create async client if not exists
     if self._async_client is None:
+      # Limits prevent resource exhaustion when creating many client instances
+      limits = httpx.Limits(max_keepalive_connections=5, max_connections=10)
       retry_transport = httpx.AsyncHTTPTransport(retries=3)
       self._async_client = httpx.AsyncClient(
         timeout=self._timeout,
         transport=retry_transport,
         headers=self._default_headers.copy(),
+        limits=limits,
       )
 
     # Handle empty params - use None instead of empty dict

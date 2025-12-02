@@ -4,9 +4,9 @@ Modern command-line interface for Alcatel Modem API
 Built with Typer and Rich for beautiful terminal output
 """
 
+import asyncio
 import json
 import sys
-from time import sleep
 from typing import Annotated, Any, Optional
 
 import typer
@@ -213,53 +213,63 @@ def system_monitor(  # type: ignore[no-untyped-def]
     console.print("[red]❌ Monitor requires password. Use -p <password>[/red]")
     raise typer.Exit(1)
 
+  async def monitor_async() -> None:
+    """Async monitor loop to prevent UI freezing"""
+    try:
+      client = get_client(url, password)
+
+      def generate_layout(status: Any) -> Layout:
+        layout = Layout()
+        layout.split_column(Layout(name="header", size=3), Layout(name="body", ratio=1))
+        layout["body"].split_row(Layout(name="signal"), Layout(name="traffic"))
+
+        # Header
+        net_type = get_network_type(status.network_type)
+        header_text = Text(f"Connected to {status.network_name or 'Unknown'} ({net_type})", style="bold white")
+        layout["header"].update(Panel(Align.center(header_text), style="blue"))
+
+        # Signal Panel
+        signal_color = "green" if status.strength >= 4 else "yellow" if status.strength >= 2 else "red"
+        signal_text = Text()
+        signal_text.append(f"Strength : {'█' * status.strength}{'░' * (5 - status.strength)}\n", style=signal_color)
+        signal_text.append(f"RSSI     : {status.rssi or 'N/A'} dBm\n")
+        signal_text.append(f"RSRP     : {status.rsrp or 'N/A'} dBm\n")
+        signal_text.append(f"SINR     : {status.sinr or 'N/A'} dB\n")
+        layout["signal"].update(Panel(signal_text, title="Signal Quality", border_style=signal_color))
+
+        # Traffic Panel
+        traffic_text = Text()
+        traffic_text.append(f"Download : {status.bytes_in_rate / 1024 / 1024:.2f} MB/s\n", style="green")
+        traffic_text.append(f"Upload   : {status.bytes_out_rate / 1024 / 1024:.2f} MB/s\n", style="blue")
+        traffic_text.append(f"Total DL : {status.bytes_in / 1024 / 1024 / 1024:.2f} GB\n")
+        traffic_text.append(f"Total UL : {status.bytes_out / 1024 / 1024 / 1024:.2f} GB")
+        layout["traffic"].update(Panel(traffic_text, title="Traffic", border_style="white"))
+
+        return layout
+
+      with Live(console=console, screen=True, refresh_per_second=4) as live:
+        while True:
+          # Use async method to prevent blocking
+          status = await client.system.poll_extended_status_async()
+          live.update(generate_layout(status))
+          await asyncio.sleep(interval)
+
+    except AuthenticationError as e:
+      console.print(f"[red]❌ Authentication error:[/red] {e}")
+      raise typer.Exit(1)
+    except KeyboardInterrupt:
+      console.print("Stopped.")
+      raise typer.Exit(0)
+    except Exception as e:
+      handle_error(e, debug=False)
+      raise typer.Exit(1)
+
+  # Run async monitor
   try:
-    client = get_client(url, password)
-
-    def generate_layout(status: Any) -> Layout:
-      layout = Layout()
-      layout.split_column(Layout(name="header", size=3), Layout(name="body", ratio=1))
-      layout["body"].split_row(Layout(name="signal"), Layout(name="traffic"))
-
-      # Header
-      net_type = get_network_type(status.network_type)
-      header_text = Text(f"Connected to {status.network_name or 'Unknown'} ({net_type})", style="bold white")
-      layout["header"].update(Panel(Align.center(header_text), style="blue"))
-
-      # Signal Panel
-      signal_color = "green" if status.strength >= 4 else "yellow" if status.strength >= 2 else "red"
-      signal_text = Text()
-      signal_text.append(f"Strength : {'█' * status.strength}{'░' * (5 - status.strength)}\n", style=signal_color)
-      signal_text.append(f"RSSI     : {status.rssi or 'N/A'} dBm\n")
-      signal_text.append(f"RSRP     : {status.rsrp or 'N/A'} dBm\n")
-      signal_text.append(f"SINR     : {status.sinr or 'N/A'} dB\n")
-      layout["signal"].update(Panel(signal_text, title="Signal Quality", border_style=signal_color))
-
-      # Traffic Panel
-      traffic_text = Text()
-      traffic_text.append(f"Download : {status.bytes_in_rate / 1024 / 1024:.2f} MB/s\n", style="green")
-      traffic_text.append(f"Upload   : {status.bytes_out_rate / 1024 / 1024:.2f} MB/s\n", style="blue")
-      traffic_text.append(f"Total DL : {status.bytes_in / 1024 / 1024 / 1024:.2f} GB\n")
-      traffic_text.append(f"Total UL : {status.bytes_out / 1024 / 1024 / 1024:.2f} GB")
-      layout["traffic"].update(Panel(traffic_text, title="Traffic", border_style="white"))
-
-      return layout
-
-    with Live(console=console, screen=True, refresh_per_second=4) as live:
-      while True:
-        status = client.system.poll_extended_status()
-        live.update(generate_layout(status))
-        sleep(interval)
-
-  except AuthenticationError as e:
-    console.print(f"[red]❌ Authentication error:[/red] {e}")
-    raise typer.Exit(1)
+    asyncio.run(monitor_async())
   except KeyboardInterrupt:
     console.print("Stopped.")
     raise typer.Exit(0)
-  except Exception as e:
-    handle_error(e, debug=False)
-    raise typer.Exit(1)
 
 
 # Network subcommands
