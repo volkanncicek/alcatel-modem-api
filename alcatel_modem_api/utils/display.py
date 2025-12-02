@@ -3,6 +3,7 @@ Display utilities for CLI output
 Provides reusable functions for formatting Pydantic models as tables
 """
 
+from collections.abc import Sequence
 from typing import Any
 
 from pydantic import BaseModel
@@ -61,12 +62,12 @@ def print_dict_as_table(data: dict[str, Any], title: str = "", show_header: bool
   console.print(table)
 
 
-def print_sms_list_as_table(messages: list[Any], title: str = "SMS Messages") -> None:
+def print_sms_list_as_table(messages: Sequence[Any], title: str = "SMS Messages") -> None:
   """
   Print a list of SMS messages as a formatted table
 
   Args:
-      messages: List of SMS message objects (dict or Pydantic models)
+      messages: Sequence of SMS message objects (dict or Pydantic models)
       title: Optional table title
   """
   table = Table(title=title, show_header=True, header_style="bold magenta")
