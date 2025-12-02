@@ -24,10 +24,11 @@ def coerce_int_or_none(v: Any) -> Union[int, None]:
     except (ValueError, TypeError):
       return None
   if isinstance(v, (int, float)):
-    value = int(v)
-    # Common sentinel values that mean "not available"
-    if value in (-999, -1, 0) and v != 0:  # Allow 0 as valid
+    # Check if original value is a sentinel before conversion
+    # Sentinel values: -999, -1 (0 is allowed as valid)
+    if v == -999 or v == -1:
       return None
+    value = int(v)
     return value
   return None
 
