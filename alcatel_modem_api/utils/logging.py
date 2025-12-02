@@ -44,6 +44,11 @@ class RedactingFilter(logging.Filter):
 
   def _redact(self, text: str) -> str:
     """Redact sensitive patterns from text"""
+    # Performance optimization: check if sensitive keywords exist before regex
+    text_lower = text.lower()
+    if not any(keyword in text_lower for keyword in ("token", "password")):
+      return text  # No sensitive data, skip regex processing
+
     result = text
     for pattern, replacement in self.SENSITIVE_PATTERNS:
       result = re.sub(pattern, replacement, result, flags=re.IGNORECASE)

@@ -66,6 +66,56 @@ jobs:
           file: ./coverage.xml
           fail_ci_if_error: false
 
+  build-binaries:
+    name: Build CLI Binary - ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    needs: test
+    if: github.event_name == 'release'
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "latest"
+
+      - name: Create virtual environment
+        run: uv venv
+
+      - name: Install dependencies
+        run: |
+          uv pip install -e ".[dev]"
+          uv pip install pyinstaller
+
+      - name: Build binary
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            uv run pyinstaller --onefile --name alcatel --console alcatel_modem_api/cli.py
+            BINARY_NAME="alcatel.exe"
+          else
+            uv run pyinstaller --onefile --name alcatel --console alcatel_modem_api/cli.py
+            BINARY_NAME="alcatel"
+          fi
+          echo "BINARY_PATH=dist/$BINARY_NAME" >> $GITHUB_ENV
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: alcatel-${{ matrix.os }}
+          path: dist/alcatel*
+
   publish:
     name: Publish to PyPI
     runs-on: ubuntu-latest
@@ -94,4 +144,28 @@ jobs:
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+
+  release-binaries:
+    name: Upload Binaries to Release
+    runs-on: ubuntu-latest
+    needs: [build-binaries, publish]
+    if: github.event_name == 'release'
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: binaries
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            binaries/alcatel-ubuntu-latest/alcatel
+            binaries/alcatel-windows-latest/alcatel.exe
+            binaries/alcatel-macos-latest/alcatel
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

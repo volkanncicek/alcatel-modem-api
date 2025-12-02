@@ -33,6 +33,7 @@ dependencies = [
   "rich>=13.0.0",
   "cryptography>=3.4.8",
   "keyring>=24.0.0",
+  "platformdirs>=4.0.0",
   "tomli>=2.0.0; python_version < '3.11'",
   "tomli-w>=1.0.0",
 ]
@@ -47,6 +48,7 @@ dev = [
   "pre-commit>=3.0.0",
   "bandit[toml]>=1.7.0",
   "tomli>=2.0.0",
+  "hypothesis>=6.0.0",
 ]
 
 [project.scripts]

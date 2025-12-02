@@ -694,6 +694,7 @@ class AlcatelClient:
   def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
     """Context manager exit (sync)"""
     self.close()
+    return False  # Explicitly propagate exceptions
 
   async def __aenter__(self) -> "AlcatelClient":
     """Context manager entry (async)"""

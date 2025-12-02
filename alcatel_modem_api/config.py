@@ -7,6 +7,8 @@ import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
+from platformdirs import user_config_dir
+
 if TYPE_CHECKING:
   import tomli
   import tomli_w
@@ -21,7 +23,8 @@ else:
     tomli = None  # type: ignore[assignment]
     tomli_w = None  # type: ignore[assignment]
 
-CONFIG_DIR = Path.home() / ".config" / "alcatel-api"
+# Use platformdirs for cross-platform config directory (XDG compliant)
+CONFIG_DIR = Path(user_config_dir("alcatel-api", "Alcatel Modem API"))
 CONFIG_PATH = CONFIG_DIR / "config.toml"
 
 

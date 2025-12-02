@@ -67,8 +67,9 @@ def test_optimistic_login_flow(mock_api_with_password, valid_aes_key, valid_aes_
 
   result = client.run("GetSystemStatus")
   assert result["NetworkName"] == "TestNet"
-  # Should have at least 4 calls: GetLoginState (fails), Login (unencrypted fails), Login (encrypted succeeds), GetLoginState (succeeds), GetSystemStatus (succeeds)
-  assert len(respx.calls) >= 4
+  # Should have at least 3 calls: GetLoginState (fails), Login (encrypted succeeds), GetSystemStatus (succeeds)
+  # Note: The login flow tries encrypted first, and if it succeeds, doesn't retry with unencrypted
+  assert len(respx.calls) >= 3
 
 
 def test_json_rpc_id_format(mock_api):
