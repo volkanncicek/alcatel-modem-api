@@ -10,6 +10,11 @@ from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 # Encryption key for admin credentials (Alcatel's custom algorithm)
+# This key was reverse-engineered from Alcatel modem firmware/web interface JavaScript.
+# The key is hardcoded in the modem's web interface and is used to encrypt admin
+# credentials before sending them to the modem's API endpoint.
+# This is a hardware-specific requirement and cannot be changed without breaking
+# compatibility with Alcatel modems.
 ENCRYPT_ADMIN_KEY = "e5dl12XYVggihggafXWf0f2YSf2Xngd1"
 
 

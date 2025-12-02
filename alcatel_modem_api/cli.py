@@ -16,13 +16,13 @@ from rich.json import JSON
 from rich.layout import Layout
 from rich.live import Live
 from rich.panel import Panel
-from rich.table import Table
 from rich.text import Text
 from typer import Option
 
 from . import AlcatelClient, AuthenticationError, UnsupportedModemError
 from .config import get_config_password, get_config_url, load_config, save_config
 from .constants import PUBLIC_VERBS, RESTRICTED_VERBS, get_network_type
+from .utils.display import print_model_as_table, print_sms_list_as_table
 
 app = typer.Typer(
   name="alcatel",
@@ -116,34 +116,7 @@ def sms_list(  # type: ignore[no-untyped-def]
     messages = client.sms.list(contact_number=contact)
 
     if pretty:
-      # Create a table for better display
-      table = Table(title="SMS Messages", show_header=True, header_style="bold magenta")
-      table.add_column("ID", style="cyan")
-      table.add_column("Phone Number", style="green")
-      table.add_column("Content", style="yellow")
-      table.add_column("Timestamp", style="blue")
-      table.add_column("Read", style="magenta")
-
-      for msg in messages:
-        if isinstance(msg, dict):
-          table.add_row(
-            str(msg.get("sms_id", "")),
-            msg.get("phone_number", ""),
-            msg.get("content", "")[:50] + "..." if len(msg.get("content", "")) > 50 else msg.get("content", ""),
-            msg.get("timestamp", ""),
-            "✓" if msg.get("read") else "✗",
-          )
-        else:
-          # Handle Pydantic models
-          table.add_row(
-            str(msg.sms_id),
-            msg.phone_number,
-            msg.content[:50] + "..." if len(msg.content) > 50 else msg.content,
-            msg.timestamp or "",
-            "✓" if msg.read else "✗",
-          )
-
-      console.print(table)
+      print_sms_list_as_table(messages)
     else:
       console.print(JSON(json.dumps([msg.model_dump() if hasattr(msg, "model_dump") else msg for msg in messages], default=str)))
 
@@ -172,19 +145,7 @@ def system_status(  # type: ignore[no-untyped-def]
     status = client.system.get_status()
 
     if pretty:
-      table = Table(title="System Status", show_header=True, header_style="bold magenta")
-      table.add_column("Property", style="cyan")
-      table.add_column("Value", style="green")
-
-      table.add_row("Connection Status", str(status.connection_status))
-      table.add_row("Signal Strength", str(status.signal_strength))
-      table.add_row("Network Name", status.network_name or "N/A")
-      table.add_row("Network Type", str(status.network_type))
-      table.add_row("IMEI", status.imei or "N/A")
-      table.add_row("ICCID", status.iccid or "N/A")
-      table.add_row("Device", status.device or "N/A")
-
-      console.print(table)
+      print_model_as_table(status, title="System Status")
     else:
       console.print(JSON(json.dumps(status.model_dump(), default=str)))
 

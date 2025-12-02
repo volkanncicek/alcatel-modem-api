@@ -1,68 +1,71 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "alcatel-modem-api"
-version = "1.0.0"
+dynamic = ["version"]
 description = "Generic Python library and CLI tool for Alcatel LTE modems"
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}
 authors = [
-    {name = "Alcatel Modem API Contributors"}
+  {name = "Alcatel Modem API Contributors"}
 ]
 keywords = ["alcatel", "modem", "lte", "4g", "5g", "router", "api", "sms"]
 classifiers = [
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Topic :: System :: Networking",
-    "Topic :: Communications :: Telephony",
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: System :: Networking",
+  "Topic :: Communications :: Telephony",
 ]
 
 dependencies = [
-    "httpx>=0.25.0",
-    "pydantic>=2.0.0",
-    "typer>=0.9.0",
-    "rich>=13.0.0",
-    "cryptography>=3.4.8",
-    "tomli>=2.0.0; python_version < '3.11'",
-    "tomli-w>=1.0.0",
+  "httpx>=0.25.0",
+  "pydantic>=2.0.0",
+  "typer>=0.9.0",
+  "rich>=13.0.0",
+  "cryptography>=3.4.8",
+  "tomli>=2.0.0; python_version < '3.11'",
+  "tomli-w>=1.0.0",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "ruff>=0.1.0",
-    "pytest>=7.0.0",
-    "pytest-cov>=4.0.0",
-    "respx>=0.20.0",
-    "mypy>=1.5.0",
-    "pre-commit>=3.0.0",
-    "tomli>=2.0.0",
+  "ruff>=0.1.0",
+  "pytest>=7.0.0",
+  "pytest-cov>=4.0.0",
+  "respx>=0.20.0",
+  "mypy>=1.5.0",
+  "pre-commit>=3.0.0",
+  "tomli>=2.0.0",
 ]
 security = [
-    "keyring>=24.0.0",
+  "keyring>=24.0.0",
 ]
 docs = [
-    "mkdocs>=1.5.0",
-    "mkdocs-material>=9.0.0",
-    "mkdocstrings[python]>=0.23.0",
+  "mkdocs>=1.5.0",
+  "mkdocs-material>=9.0.0",
+  "mkdocstrings[python]>=0.23.0",
 ]
 
 [project.scripts]
 alcatel = "alcatel_modem_api.cli:cli"
 
-[tool.setuptools]
-packages = ["alcatel_modem_api"]
+[tool.hatch.version]
+path = "alcatel_modem_api/__init__.py"
 
-[tool.setuptools.package-data]
-"*" = ["*.md", "*.txt"]
+[tool.hatch.build.targets.sdist]
+include = [
+  "alcatel_modem_api",
+  "alcatel_modem_api/py.typed",
+]
 
 [tool.ruff]
 line-length = 160
@@ -99,7 +102,6 @@ strict = true
 
 [[tool.mypy.overrides]]
 module = [
-    "tests.*",
+  "tests.*",
 ]
 disallow_untyped_defs = false
-

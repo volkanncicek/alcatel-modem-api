@@ -8,7 +8,6 @@ resolution-markers = [
 
 [[package]]
 name = "alcatel-modem-api"
-version = "1.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "cryptography" },
@@ -63,7 +62,7 @@ requires-dist = [
     { name = "tomli-w", specifier = ">=1.0.0" },
     { name = "typer", specifier = ">=0.9.0" },
 ]
-provides-extras = ["dev", "security", "docs"]
+provides-extras = ["dev", "docs", "security"]
 
 [[package]]
 name = "annotated-types"

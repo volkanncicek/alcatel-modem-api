@@ -22,6 +22,7 @@ from .exceptions import (
   AuthenticationError,
   UnsupportedModemError,
 )
+from .utils.diagnostics import detect_modem_brand
 from .utils.encryption import encrypt_admin, encrypt_token
 from .utils.logging import get_logger
 
@@ -63,64 +64,6 @@ def format_http_error(status_code: int, response_text: str = "") -> str:
     return f"{status_msg}: {error_text}"
   else:
     return status_msg
-
-
-def detect_modem_brand(response: httpx.Response) -> Union[str, None]:
-  """
-  Detect modem brand from HTTP response headers and body
-
-  Args:
-      response: HTTP response object
-
-  Returns:
-      Detected brand name or None if unknown
-  """
-  # Check all headers (case-insensitive)
-  all_headers = {k.lower(): v.lower() for k, v in response.headers.items()}
-
-  # Check Server header
-  server = all_headers.get("server", "")
-  if "keenetic" in server:
-    return "Keenetic"
-  if "huawei" in server or "hilink" in server:
-    return "Huawei"
-  if "netgear" in server:
-    return "Netgear"
-  if "tp-link" in server or "tplink" in server:
-    return "TP-Link"
-  if "d-link" in server or "dlink" in server:
-    return "D-Link"
-  if "asus" in server:
-    return "ASUS"
-  if "zyxel" in server:
-    return "Zyxel"
-
-  # Check X-Powered-By or other custom headers
-  powered_by = all_headers.get("x-powered-by", "")
-  if "keenetic" in powered_by:
-    return "Keenetic"
-
-  # Check response body for brand indicators (more characters for better detection)
-  try:
-    body_text = response.text[:1000].lower()
-    if "keenetic" in body_text or "keeneticos" in body_text:
-      return "Keenetic"
-    if "huawei" in body_text or "hilink" in body_text:
-      return "Huawei"
-    if "netgear" in body_text:
-      return "Netgear"
-    if "tp-link" in body_text or "tplink" in body_text:
-      return "TP-Link"
-    if "d-link" in body_text or "dlink" in body_text:
-      return "D-Link"
-    if "asus" in body_text:
-      return "ASUS"
-    if "zyxel" in body_text:
-      return "Zyxel"
-  except Exception:
-    pass
-
-  return None
 
 
 class TokenStorageProtocol(Protocol):
