@@ -6,12 +6,12 @@ with matching signatures (excluding the async/await keywords).
 """
 
 import inspect
-from typing import Any
+from typing import Any, Optional
 
 from alcatel_modem_api import AlcatelClient
 
 
-def get_public_methods(obj: Any, exclude: set[str] | None = None) -> set[str]:
+def get_public_methods(obj: Any, exclude: Optional[set[str]] = None) -> set[str]:
   """Get all public methods from an object"""
   exclude = exclude or set()
   methods = set()
