@@ -5,14 +5,19 @@ Stores URL and password in a config file
 
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
+
+tomli: Any
+tomli_w: Any
 
 try:
-  import tomli  # type: ignore[import-not-found]
-  import tomli_w
+  import tomli as _tomli  # type: ignore[import-not-found]
+  import tomli_w as _tomli_w
+  tomli = _tomli
+  tomli_w = _tomli_w
 except ImportError:
   tomli = None
-  tomli_w = None  # type: ignore[assignment]
+  tomli_w = None
 
 CONFIG_DIR = Path.home() / ".config" / "alcatel-api"
 CONFIG_PATH = CONFIG_DIR / "config.toml"
