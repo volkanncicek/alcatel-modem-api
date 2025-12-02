@@ -51,7 +51,7 @@ jobs:
           uv run bandit -c pyproject.toml -r alcatel_modem_api
 
       - name: Scan dependencies for vulnerabilities
-        uses: google/osv-scanner-action@v2
+        uses: google/osv-scanner-action@v1
         with:
           scan-args: '--lockfile uv.lock --format json --output osv-report.json'
           fail-on-vulnerability: true
