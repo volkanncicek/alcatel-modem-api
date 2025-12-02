@@ -20,6 +20,7 @@ from rich.text import Text
 from typer import Option
 
 from . import AlcatelClient, AuthenticationError, UnsupportedModemError
+from .config import get_config_password, get_config_url, load_config, save_config
 from .constants import PUBLIC_VERBS, RESTRICTED_VERBS, get_network_type
 
 app = typer.Typer(
@@ -30,18 +31,28 @@ app = typer.Typer(
 console = Console()
 
 # Global options
-url_option = Option("http://192.168.1.1", "-u", "--url", help="Modem URL")
+url_option = Option(None, "-u", "--url", help="Modem URL (defaults to config or http://192.168.1.1)")
 password_option = Option(None, "-p", "--password", help="Admin password (required for protected commands)")
 pretty_option = Option(False, "--pretty", help="Pretty print JSON output")
+debug_option = Option(False, "--debug", help="Show full traceback for errors")
 
 
-def get_client(url: str, password: Optional[str] = None) -> AlcatelClient:
+def get_client(url: Optional[str] = None, password: Optional[str] = None) -> AlcatelClient:
   """Create and return AlcatelClient instance"""
+  # Use config values if not provided
+  if url is None:
+    url = get_config_url() or "http://192.168.1.1"
+  if password is None:
+    password = get_config_password()
   return AlcatelClient(url=url, password=password)
 
 
-def handle_error(e: Exception) -> None:
+def handle_error(e: Exception, debug: bool = False) -> None:
   """Handle errors with appropriate messages"""
+  if debug:
+    console.print_exception()
+    return
+
   if isinstance(e, UnsupportedModemError):
     console.print("[red]❌ Unsupported Modem:[/red]")
     console.print(f"   {e}")
@@ -53,6 +64,7 @@ def handle_error(e: Exception) -> None:
     console.print("   Tip: Use -p <password> to provide admin password")
   else:
     console.print(f"[red]❌ Error:[/red] {e}")
+    console.print("   Tip: Use --debug to see full traceback")
 
 
 # SMS subcommands
@@ -138,7 +150,7 @@ def sms_list(
     console.print(f"[red]❌ Authentication error:[/red] {e}")
     raise typer.Exit(1)
   except Exception as e:
-    handle_error(e)
+    handle_error(e, debug=False)
     raise typer.Exit(1)
 
 
@@ -176,7 +188,7 @@ def system_status(
       console.print(JSON(json.dumps(status.model_dump(), default=str)))
 
   except Exception as e:
-    handle_error(e)
+    handle_error(e, debug=False)
     raise typer.Exit(1)
 
 
@@ -196,7 +208,7 @@ def poll_basic(
       console.print(status)
 
   except Exception as e:
-    handle_error(e)
+    handle_error(e, debug=False)
     raise typer.Exit(1)
 
 
@@ -224,7 +236,7 @@ def poll_extended(
     console.print(f"[red]❌ Authentication error:[/red] {e}")
     raise typer.Exit(1)
   except Exception as e:
-    handle_error(e)
+    handle_error(e, debug=False)
     raise typer.Exit(1)
 
 
@@ -284,7 +296,7 @@ def system_monitor(
     console.print("Stopped.")
     raise typer.Exit(0)
   except Exception as e:
-    handle_error(e)
+    handle_error(e, debug=False)
     raise typer.Exit(1)
 
 
@@ -295,14 +307,17 @@ app.add_typer(network_app, name="network")
 
 @network_app.command("info")
 def network_info(
-  url: str = url_option,
+  url: Optional[str] = url_option,
   password: Optional[str] = password_option,
   pretty: bool = pretty_option,
+  debug: bool = debug_option,
 ):
   """Get network information (requires login)"""
   if not password:
+    password = get_config_password()
+  if not password:
     console.print("[red]❌ Error:[/red] Password required")
-    console.print("   Use: -p <password>")
+    console.print("   Use: -p <password> or configure with: alcatel configure -p <password>")
     raise typer.Exit(1)
 
   try:
@@ -318,7 +333,7 @@ def network_info(
     console.print(f"[red]❌ Authentication error:[/red] {e}")
     raise typer.Exit(1)
   except Exception as e:
-    handle_error(e)
+    handle_error(e, debug=debug)
     raise typer.Exit(1)
 
 
@@ -344,7 +359,7 @@ def network_connect(
     console.print(f"[red]❌ Authentication error:[/red] {e}")
     raise typer.Exit(1)
   except Exception as e:
-    handle_error(e)
+    handle_error(e, debug=False)
     raise typer.Exit(1)
 
 
@@ -370,7 +385,7 @@ def network_disconnect(
     console.print(f"[red]❌ Authentication error:[/red] {e}")
     raise typer.Exit(1)
   except Exception as e:
-    handle_error(e)
+    handle_error(e, debug=False)
     raise typer.Exit(1)
 
 
@@ -378,9 +393,10 @@ def network_disconnect(
 @app.command("run")
 def run_command(
   command: Annotated[str, typer.Argument(help="Command to execute")],
-  url: str = url_option,
+  url: Optional[str] = url_option,
   password: Optional[str] = password_option,
   pretty: bool = pretty_option,
+  debug: bool = debug_option,
 ):
   """Execute a raw API command"""
   try:
@@ -397,7 +413,50 @@ def run_command(
     console.print("   Tip: Use -p <password> to provide admin password")
     raise typer.Exit(1)
   except Exception as e:
-    handle_error(e)
+    handle_error(e, debug=debug)
+    raise typer.Exit(1)
+
+
+# Configuration command
+@app.command("configure")
+def configure(
+  url: Annotated[Optional[str], typer.Option("-u", "--url", help="Modem URL")] = None,
+  password: Annotated[Optional[str], typer.Option("-p", "--password", help="Admin password (optional)")] = None,
+):
+  """Configure default URL and password"""
+  try:
+    if url is None and password is None:
+      # Show current config
+      config = load_config()
+      if config:
+        console.print("[cyan]Current configuration:[/cyan]")
+        console.print(f"  URL: {config.get('url', 'Not set')}")
+        if "password" in config:
+          console.print("  Password: [yellow]Set (hidden)[/yellow]")
+        else:
+          console.print("  Password: [yellow]Not set[/yellow]")
+      else:
+        console.print("[yellow]No configuration found.[/yellow]")
+        console.print("  Use: alcatel configure -u <url> [-p <password>]")
+      return
+
+    if url is None:
+      url = get_config_url() or "http://192.168.1.1"
+
+    save_config(url, password)
+    console.print("[green]✅ Configuration saved[/green]")
+    console.print(f"  URL: {url}")
+    if password:
+      console.print("  Password: [yellow]Saved (consider using environment variable instead)[/yellow]")
+    else:
+      console.print("  Password: [yellow]Not saved (use -p to save, or pass via CLI)[/yellow]")
+
+  except ImportError as e:
+    console.print(f"[red]❌ Error:[/red] {e}")
+    console.print("   Install tomli-w: uv pip install tomli-w")
+    raise typer.Exit(1)
+  except Exception as e:
+    console.print(f"[red]❌ Error:[/red] {e}")
     raise typer.Exit(1)
 
 

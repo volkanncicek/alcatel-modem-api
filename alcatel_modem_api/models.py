@@ -117,6 +117,24 @@ class NetworkInfo(BaseModel):
     """Create NetworkInfo from API response dict"""
     return cls.model_validate(data)
 
+  @property
+  def signal_quality_percent(self) -> int:
+    """
+    Estimate signal quality percentage based on RSRP/RSSI
+
+    Returns:
+        Signal quality percentage (0-100)
+    """
+    if self.rsrp is not None:
+      # RSRP mapping: -140 (0%) to -44 (100%)
+      val = max(-140, min(-44, self.rsrp))
+      return int((val + 140) * (100 / 96))
+    if self.rssi is not None:
+      # Fallback to RSSI: -113 (0%) to -51 (100%)
+      val = max(-113, min(-51, self.rssi))
+      return int((val + 113) * (100 / 62))
+    return 0
+
   model_config = ConfigDict(populate_by_name=True)
 
 

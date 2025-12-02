@@ -670,3 +670,19 @@ class AlcatelClient:
     """Close async HTTP client"""
     if self._async_client:
       await self._async_client.aclose()
+
+  def __enter__(self) -> "AlcatelClient":
+    """Context manager entry (sync)"""
+    return self
+
+  def __exit__(self, exc_type, exc_value, traceback) -> None:
+    """Context manager exit (sync)"""
+    self.close()
+
+  async def __aenter__(self) -> "AlcatelClient":
+    """Context manager entry (async)"""
+    return self
+
+  async def __aexit__(self, exc_type, exc_value, traceback) -> None:
+    """Context manager exit (async)"""
+    await self.aclose()

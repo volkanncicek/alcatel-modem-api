@@ -1,5 +1,10 @@
 # Alcatel Modem API
 
+[![PyPI version](https://img.shields.io/pypi/v/alcatel-modem-api.svg)](https://pypi.org/project/alcatel-modem-api/)
+[![Python Versions](https://img.shields.io/pypi/pyversions/alcatel-modem-api.svg)](https://pypi.org/project/alcatel-modem-api/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![CI/CD](https://github.com/volkanncicek/alcatel-modem-api/actions/workflows/main.yml/badge.svg)](https://github.com/volkanncicek/alcatel-modem-api/actions)
+
 Generic Python library and CLI tool for Alcatel LTE modems. Supports multiple Alcatel models (see [Supported Models](#supported-models) below) that use the `/jrd/webapi` endpoint.
 
 ## Purpose
@@ -247,6 +252,7 @@ print(f"Signal: {status.signal_strength}/5")
 network = client.network.get_info()
 print(f"RSSI: {network.rssi} dBm")
 print(f"RSRP: {network.rsrp} dBm")
+print(f"Signal Quality: {network.signal_quality_percent}%")
 
 # Send SMS
 client.sms.send("+1234567890", "Hello from Python!")
@@ -256,12 +262,18 @@ sms_list = client.sms.list()
 for msg in sms_list:
     print(f"{msg.phone_number}: {msg.content}")
 
-# Async support
+# Context manager support (automatic cleanup)
+with AlcatelClient(url="http://192.168.1.1", password="admin") as client:
+    status = client.system.get_status()
+    print(status.network_name)
+
+# Async support with context manager
 import asyncio
 
 async def main():
-    status = await client.system.get_status_async()
-    print(status.network_name)
+    async with AlcatelClient(url="http://192.168.1.1", password="admin") as client:
+        status = await client.system.get_status_async()
+        print(status.network_name)
 
 asyncio.run(main())
 ```
@@ -278,6 +290,9 @@ Main API class for interacting with Alcatel modems.
 - `run_async(command, **params)`: Execute any API command (async)
 - `logout()`: Clear authentication token
 - `set_password(password)`: Set admin password for automatic login
+- `close()`: Close HTTP clients (sync)
+- `aclose()`: Close HTTP clients (async)
+- Context manager support: Use `with AlcatelClient(...)` or `async with AlcatelClient(...)` for automatic cleanup
 
 #### Namespace Endpoints
 
@@ -293,6 +308,7 @@ The API is organized into namespaces for better organization:
 
 **Network Endpoint** (`client.network`):
 - `get_info()`: Get network information (returns `NetworkInfo` model)
+  - `NetworkInfo.signal_quality_percent`: Calculated signal quality percentage (0-100) based on RSRP/RSSI
 - `get_settings()`: Get network settings
 - `set_settings(network_mode, net_selection_mode=0)`: Set network settings
 - `connect()`: Connect to network
@@ -428,13 +444,37 @@ All endpoints have both sync and async versions (e.g., `get_status()` and `get_s
 
 - **URL**: `http://192.168.1.1`
 - **Session File**: `~/.alcatel_modem_session` (stores authentication token)
+- **Config File**: `~/.config/alcatel-api/config.toml` (stores default URL and password)
+
+### Configuration Management
+
+You can save your default URL and password to avoid typing them every time:
+
+```bash
+# Configure default URL and password
+alcatel configure -u http://192.168.1.1 -p admin
+
+# View current configuration
+alcatel configure
+
+# After configuration, you can use commands without -u and -p
+alcatel system status
+alcatel network info
+```
+
+**Note:** Storing passwords in plain text is not recommended for production use. Consider using environment variables or passing the password via CLI flags instead.
 
 ### Custom URL
 
 If your modem is at a different IP address:
 
 ```bash
+# Using CLI flag (overrides config)
 alcatel system status -u http://192.168.0.1
+
+# Or configure it once
+alcatel configure -u http://192.168.0.1
+alcatel system status
 ```
 
 ## Authentication
@@ -710,10 +750,21 @@ For detailed usage and all options, see [`examples/README.md`](examples/README.m
 
 ## Troubleshooting
 
+### Debug Mode
+
+If you encounter errors, use the `--debug` flag to see full traceback:
+
+```bash
+alcatel system status --debug
+alcatel network info -p admin --debug
+```
+
+This will show the complete Python traceback, which is helpful for debugging issues.
+
 ### Authentication Error
 
 If you get an authentication error, make sure:
-1. You provided the correct password with `-p` flag
+1. You provided the correct password with `-p` flag or configured it with `alcatel configure`
 2. The modem admin password is correct
 3. You're using the correct URL
 
@@ -723,6 +774,7 @@ If you can't connect:
 1. Check if the modem is accessible at the URL
 2. Verify you're on the same network
 3. Try accessing the web interface in a browser first
+4. Use `--debug` flag to see detailed error information
 
 ### SMS Not Sending
 
