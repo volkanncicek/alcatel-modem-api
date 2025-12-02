@@ -248,19 +248,11 @@ class AlcatelClient:
     self._password = password
     self._timeout = timeout
 
-    # Token storage - try keyring first, fallback to file
-    if token_storage:
+    # Token storage: use custom implementation if provided, otherwise default to file-based storage
+    if token_storage is not None:
       self._token_manager = token_storage
     else:
-      # Try to use keyring storage with file fallback
-      try:
-        from .utils.keyring_storage import KeyringTokenStorage
-
-        self._token_manager = KeyringTokenStorage(session_file, use_keyring=True)
-      except (ImportError, Exception):
-        # Fallback to file storage if keyring not available or fails
-        logger.debug("Keyring not available, using file storage")
-        self._token_manager = FileTokenStorage(session_file if session_file else None)
+      self._token_manager = FileTokenStorage(session_file if session_file else None)
 
     # Default headers
     self._default_headers = {
