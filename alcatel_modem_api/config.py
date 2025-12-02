@@ -11,7 +11,7 @@ tomli: Any
 tomli_w: Any
 
 try:
-  import tomli as _tomli  # type: ignore[import-not-found]
+  import tomli as _tomli
   import tomli_w as _tomli_w
 
   tomli = _tomli
