@@ -13,6 +13,7 @@ tomli_w: Any
 try:
   import tomli as _tomli  # type: ignore[import-not-found]
   import tomli_w as _tomli_w
+
   tomli = _tomli
   tomli_w = _tomli_w
 except ImportError:
