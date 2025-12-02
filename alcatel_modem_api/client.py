@@ -23,7 +23,7 @@ from .exceptions import (
   UnsupportedModemError,
 )
 from .utils.diagnostics import detect_modem_brand
-from .utils.encryption import encrypt_admin, encrypt_token
+from .utils.encryption import encrypt_token
 from .utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -176,6 +176,8 @@ class AlcatelClient:
     session_file: Union[str, None] = None,
     timeout: int = 10,
     token_storage: Union[TokenStorageProtocol, None] = None,
+    connection_limits: Union[httpx.Limits, None] = None,
+    encrypt_admin_key: Union[str, None] = None,
   ):
     """
     Initialize Alcatel Modem API client
@@ -186,10 +188,15 @@ class AlcatelClient:
         session_file: Path to session token file (optional)
         timeout: Request timeout in seconds (default: 10)
         token_storage: Custom token storage implementation (optional)
+        connection_limits: Custom httpx.Limits for connection pooling (optional)
+        encrypt_admin_key: Custom encryption key for admin credentials (optional)
     """
     self._url = url.rstrip("/")
     self._password = password
     self._timeout = timeout
+
+    # Store encryption key override if provided
+    self._encrypt_admin_key = encrypt_admin_key
 
     # Token storage: use custom implementation if provided, otherwise default to file-based storage
     if token_storage is not None:
@@ -213,13 +220,13 @@ class AlcatelClient:
 
     # Create httpx clients with retry logic and connection pool limits
     # Limits prevent resource exhaustion when creating many client instances
-    limits = httpx.Limits(max_keepalive_connections=5, max_connections=10)
+    self._limits = connection_limits or httpx.Limits(max_keepalive_connections=5, max_connections=10)
     retry_transport = httpx.HTTPTransport(retries=3)
     self._client = httpx.Client(
       timeout=timeout,
       transport=retry_transport,
       headers=self._default_headers.copy(),
-      limits=limits,
+      limits=self._limits,
     )
 
     # Async client will be created on first use
@@ -363,10 +370,30 @@ class AlcatelClient:
         result = self._run_command("Login", UserName="admin", Password=self._password)
       except Exception:
         # If that fails, try encrypted (HH72 style)
+        # Use custom encryption key if provided, otherwise use default
+        from .utils.encryption import encrypt_admin as default_encrypt_admin
+
+        if self._encrypt_admin_key:
+          # Create a custom encrypt function with the provided key
+          encrypt_key = self._encrypt_admin_key
+
+          def custom_encrypt_admin(value: str) -> str:
+            encoded = bytearray()
+            for index, char in enumerate(value):
+              value_code = ord(char)
+              key_code = ord(encrypt_key[index % len(encrypt_key)])
+              encoded.append((240 & key_code) | ((15 & value_code) ^ (15 & key_code)))
+              encoded.append((240 & key_code) | ((value_code >> 4) ^ (15 & key_code)))
+            return encoded.decode()
+
+          encrypt_func = custom_encrypt_admin
+        else:
+          encrypt_func = default_encrypt_admin
+
         result = self._run_command(
           "Login",
-          UserName=encrypt_admin("admin"),
-          Password=encrypt_admin(self._password),
+          UserName=encrypt_func("admin"),
+          Password=encrypt_func(self._password),
         )
 
       token = result["token"]
@@ -401,7 +428,27 @@ class AlcatelClient:
       try:
         result = await self._run_command_async("Login", UserName="admin", Password=self._password)
       except Exception:
-        result = await self._run_command_async("Login", UserName=encrypt_admin("admin"), Password=encrypt_admin(self._password))
+        # Use custom encryption key if provided, otherwise use default
+        from .utils.encryption import encrypt_admin as default_encrypt_admin
+
+        if self._encrypt_admin_key:
+          # Create a custom encrypt function with the provided key
+          encrypt_key = self._encrypt_admin_key
+
+          def custom_encrypt_admin(value: str) -> str:
+            encoded = bytearray()
+            for index, char in enumerate(value):
+              value_code = ord(char)
+              key_code = ord(encrypt_key[index % len(encrypt_key)])
+              encoded.append((240 & key_code) | ((15 & value_code) ^ (15 & key_code)))
+              encoded.append((240 & key_code) | ((value_code >> 4) ^ (15 & key_code)))
+            return encoded.decode()
+
+          encrypt_func = custom_encrypt_admin
+        else:
+          encrypt_func = default_encrypt_admin
+
+        result = await self._run_command_async("Login", UserName=encrypt_func("admin"), Password=encrypt_func(self._password))
 
       token = result["token"]
 
@@ -516,13 +563,13 @@ class AlcatelClient:
     # Create async client if not exists
     if self._async_client is None:
       # Limits prevent resource exhaustion when creating many client instances
-      limits = httpx.Limits(max_keepalive_connections=5, max_connections=10)
+      # Use the same limits as sync client
       retry_transport = httpx.AsyncHTTPTransport(retries=3)
       self._async_client = httpx.AsyncClient(
         timeout=self._timeout,
         transport=retry_transport,
         headers=self._default_headers.copy(),
-        limits=limits,
+        limits=self._limits,
       )
 
     # Handle empty params - use None instead of empty dict
