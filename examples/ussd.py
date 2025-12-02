@@ -13,7 +13,7 @@ from pathlib import Path
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from alcatel_modem_api import AlcatelModemAPI
+from alcatel_modem_api import AlcatelClient
 
 # Common USSD codes (customize for your carrier)
 USSD_CODES = {
@@ -50,13 +50,13 @@ def main():
     sys.exit(1)
 
   # Initialize API
-  api = AlcatelModemAPI(args.url, args.password)
+  api = AlcatelClient(args.url, args.password)
 
   print(f"Sending USSD code: {args.code}")
   print(f"Waiting {args.wait} seconds for response...")
 
   try:
-    result = api.send_ussd_code(args.code, wait_seconds=args.wait)
+    result = api.system.send_ussd_code(args.code, wait_seconds=args.wait)
 
     send_state = result.get("SendState", 0)
     ussd_content = result.get("UssdContent", "")

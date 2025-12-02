@@ -10,7 +10,7 @@ from pathlib import Path
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from alcatel_modem_api import AlcatelModemAPI
+from alcatel_modem_api import AlcatelClient
 
 
 def main():
@@ -25,7 +25,7 @@ def main():
 
     args = parser.parse_args()
 
-    api = AlcatelModemAPI(args.url, args.password)
+    api = AlcatelClient(args.url, args.password)
 
     if args.extended:
         if not args.password:
@@ -33,16 +33,16 @@ def main():
             sys.exit(1)
 
         print("📊 Polling extended status...")
-        status = api.poll_extended_status()
+        status = api.system.poll_extended_status()
 
         if args.pretty:
-            print(json.dumps(status, indent=2, ensure_ascii=False))
+            print(json.dumps(status.model_dump(), indent=2, ensure_ascii=False))
         else:
-            print(status)
+            print(status.model_dump())
 
     elif args.basic:
         print("📊 Polling basic status...")
-        status = api.poll_basic_status()
+        status = api.system.poll_basic_status()
 
         if args.pretty:
             print(json.dumps(status, indent=2, ensure_ascii=False))
@@ -52,14 +52,14 @@ def main():
     else:
         # Default: show both
         print("📊 Polling basic status (no login required)...")
-        basic = api.poll_basic_status()
+        basic = api.system.poll_basic_status()
         print(json.dumps(basic, indent=2, ensure_ascii=False))
         print()
 
         if args.password:
             print("📊 Polling extended status (login required)...")
-            extended = api.poll_extended_status()
-            print(json.dumps(extended, indent=2, ensure_ascii=False))
+            extended = api.system.poll_extended_status()
+            print(json.dumps(extended.model_dump(), indent=2, ensure_ascii=False))
         else:
             print("💡 Use -p <password> to get extended status")
 

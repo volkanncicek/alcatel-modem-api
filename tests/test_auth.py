@@ -6,13 +6,8 @@ import os
 import tempfile
 from pathlib import Path
 
-from alcatel_modem_api.auth import (
-  AuthenticationError,
-  FileTokenStorage,
-  MemoryTokenStorage,
-  encrypt_admin,
-  encrypt_token,
-)
+from alcatel_modem_api import AuthenticationError, FileTokenStorage, MemoryTokenStorage
+from alcatel_modem_api.utils.encryption import encrypt_admin, encrypt_token
 
 
 def test_encrypt_admin():

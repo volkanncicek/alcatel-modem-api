@@ -12,7 +12,7 @@ from pathlib import Path
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from alcatel_modem_api import AlcatelModemAPI
+from alcatel_modem_api import AlcatelClient
 
 
 def get_alcatel_data(api, method):
@@ -88,7 +88,7 @@ def main():
         args.plugin_id = args.plugin_name.replace(" ", "")
 
     # Initialize API
-    api = AlcatelModemAPI(args.url, args.password)
+    api = AlcatelClient(args.url, args.password)
 
     # Get data
     data = get_alcatel_data(api, args.method)

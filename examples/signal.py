@@ -22,7 +22,7 @@ from pathlib import Path
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from alcatel_modem_api import AlcatelModemAPI
+from alcatel_modem_api import AlcatelClient
 from alcatel_modem_api.constants import get_network_type
 
 
@@ -134,7 +134,7 @@ Examples:
     args = parser.parse_args()
 
     # Initialize API
-    api = AlcatelModemAPI(args.url, args.password)
+    api = AlcatelClient(args.url, args.password)
 
     print("📡 Signal Strength Monitor")
     print(f"   Modem: {args.url}")
@@ -153,11 +153,11 @@ Examples:
         while True:
             try:
                 # Get system status (no login required)
-                system_status = api.get_system_status()
-                strength = system_status.get("SignalStrength", 0)
-                network_type_code = system_status.get("NetworkType", 0)
+                system_status = api.system.get_status()
+                strength = system_status.signal_strength
+                network_type_code = system_status.network_type
                 network_type = get_network_type(network_type_code)
-                network_name = system_status.get("NetworkName", "Unknown")
+                network_name = system_status.network_name
 
                 # Extended info (requires login)
                 rssi = None
@@ -165,10 +165,10 @@ Examples:
                 sinr = None
                 if args.extended and args.password:
                     try:
-                        network_info = api.get_network_info()
-                        rssi = network_info.get("RSSI")
-                        rsrp = network_info.get("RSRP")
-                        sinr = network_info.get("SINR")
+                        network_info = api.network.get_info()
+                        rssi = network_info.rssi
+                        rsrp = network_info.rsrp
+                        sinr = network_info.sinr
                     except Exception:
                         pass
 

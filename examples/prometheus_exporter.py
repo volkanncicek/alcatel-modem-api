@@ -14,18 +14,18 @@ from pathlib import Path
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from alcatel_modem_api import AlcatelModemAPI
+from alcatel_modem_api import AlcatelClient
 
 
 class PrometheusExporter:
     """Prometheus metrics exporter for Alcatel modems"""
 
-    def __init__(self, api: AlcatelModemAPI, update_interval: int = 10):
+    def __init__(self, api: AlcatelClient, update_interval: int = 10):
         """
         Initialize exporter
 
         Args:
-            api: AlcatelModemAPI instance
+            api: AlcatelClient instance
             update_interval: Update interval in seconds (default: 10)
         """
         self.api = api
@@ -37,33 +37,36 @@ class PrometheusExporter:
         """Collect metrics from modem"""
         try:
             # Get system info (once, doesn't change often)
-            system_info = self.api.get_system_info()
+            system_info = self.api.system.get_info()
             imei = system_info.get("IMEI", "unknown")
             imsi = system_info.get("IMSI", "unknown")
             mac_address = system_info.get("MacAddress", "unknown").strip()
 
-            # Get system status
-            system_status = self.api.get_system_status()
+            # Get system status (returns Pydantic model)
+            system_status = self.api.system.get_status()
+            status_dict = system_status.model_dump()
 
             # Get network info (requires login) - for detailed signal metrics
+            network_info = None
             try:
-                network_info = self.api.get_network_info()
+                network_info = self.api.network.get_info()
             except Exception:
-                network_info = {}
+                pass
 
             # Get connection state (requires login)
+            connection_state = None
             try:
-                connection_state = self.api.get_connection_state()
+                connection_state = self.api.network.get_connection_state()
             except Exception:
-                connection_state = {}
+                pass
 
             # Get SMS storage state (public command, no login needed)
+            sms_storage = None
             try:
-                sms_storage = self.api.get_sms_storage_state()
+                sms_storage = self.api.sms.get_storage_state()
             except Exception as e:
                 # Log error but continue
                 print(f"Warning: Could not get SMS storage state: {e}", file=sys.stderr)
-                sms_storage = {}
 
             # Build metrics
             labels = f'imei="{imei}",imsi="{imsi}",mac_address="{mac_address}"'
@@ -71,45 +74,47 @@ class PrometheusExporter:
             metrics = []
 
             # System Status Metrics
-            metrics.append(f'battery_capacity_percent{{{labels}}} {system_status.get("bat_cap", 0)}')
-            metrics.append(f'battery_level{{{labels}}} {system_status.get("bat_level", 0)}')
-            metrics.append(f'current_connection_count{{{labels}}} {system_status.get("curr_num", 0)}')
-            metrics.append(f'total_connection_count{{{labels}}} {system_status.get("TotalConnNum", 0)}')
-            metrics.append(f'signal_strength{{{labels}}} {system_status.get("SignalStrength", 0)}')
-            metrics.append(f'roaming{{{labels}}} {system_status.get("Roaming", 0)}')
-            metrics.append(f'domestic_roaming{{{labels}}} {system_status.get("Domestic_Roaming", 0)}')
-            metrics.append(f'network_type{{{labels}}} {system_status.get("NetworkType", 0)}')
+            metrics.append(f'battery_capacity_percent{{{labels}}} {status_dict.get("bat_cap", 0)}')
+            metrics.append(f'battery_level{{{labels}}} {status_dict.get("bat_level", 0)}')
+            metrics.append(f'current_connection_count{{{labels}}} {status_dict.get("curr_num", 0)}')
+            metrics.append(f'total_connection_count{{{labels}}} {status_dict.get("TotalConnNum", 0)}')
+            metrics.append(f'signal_strength{{{labels}}} {status_dict.get("SignalStrength", 0)}')
+            metrics.append(f'roaming{{{labels}}} {status_dict.get("Roaming", 0)}')
+            metrics.append(f'domestic_roaming{{{labels}}} {status_dict.get("Domestic_Roaming", 0)}')
+            metrics.append(f'network_type{{{labels}}} {status_dict.get("NetworkType", 0)}')
 
             # Network Info Metrics (detailed signal info)
             if network_info:
+                network_dict = network_info.model_dump()
                 # Signal quality metrics (from Munin plugin)
-                if network_info.get("SINR"):
-                    metrics.append(f'sinr{{{labels}}} {int(network_info.get("SINR", -999))}')
-                if network_info.get("RSRP"):
-                    metrics.append(f'rsrp{{{labels}}} {int(network_info.get("RSRP", -999))}')
-                if network_info.get("RSSI"):
-                    metrics.append(f'rssi{{{labels}}} {int(network_info.get("RSSI", -999))}')
-                if network_info.get("RSRQ"):
-                    metrics.append(f'rsrq{{{labels}}} {int(network_info.get("RSRQ", -999))}')
-                if network_info.get("EcIo"):
-                    metrics.append(f'ecio{{{labels}}} {float(network_info.get("EcIo", 0))}')
-                if network_info.get("RSCP"):
-                    metrics.append(f'rscp{{{labels}}} {int(network_info.get("RSCP", -999))}')
-                if network_info.get("CellId"):
-                    metrics.append(f'cell_id{{{labels}}} {network_info.get("CellId", 0)}')
-                if network_info.get("eNBID"):
-                    metrics.append(f'enb_id{{{labels}}} {network_info.get("eNBID", 0)}')
+                if network_dict.get("SINR") is not None:
+                    metrics.append(f'sinr{{{labels}}} {int(network_dict.get("SINR", -999))}')
+                if network_dict.get("RSRP") is not None:
+                    metrics.append(f'rsrp{{{labels}}} {int(network_dict.get("RSRP", -999))}')
+                if network_dict.get("RSSI") is not None:
+                    metrics.append(f'rssi{{{labels}}} {int(network_dict.get("RSSI", -999))}')
+                if network_dict.get("RSRQ") is not None:
+                    metrics.append(f'rsrq{{{labels}}} {int(network_dict.get("RSRQ", -999))}')
+                if network_dict.get("EcIo") is not None:
+                    metrics.append(f'ecio{{{labels}}} {float(network_dict.get("EcIo", 0))}')
+                if network_dict.get("RSCP") is not None:
+                    metrics.append(f'rscp{{{labels}}} {int(network_dict.get("RSCP", -999))}')
+                if network_dict.get("CellId") is not None:
+                    metrics.append(f'cell_id{{{labels}}} {network_dict.get("CellId", 0)}')
+                if network_dict.get("eNBID") is not None:
+                    metrics.append(f'enb_id{{{labels}}} {network_dict.get("eNBID", 0)}')
 
             # Connection State Metrics
             if connection_state:
-                metrics.append(f'connection_status{{{labels}}} {connection_state.get("ConnectionStatus", 0)}')
-                metrics.append(f'speed_download{{{labels}}} {connection_state.get("Speed_Dl", 0)}')
-                metrics.append(f'speed_upload{{{labels}}} {connection_state.get("Speed_Ul", 0)}')
-                metrics.append(f'download_rate{{{labels}}} {connection_state.get("DlRate", 0)}')
-                metrics.append(f'upload_rate{{{labels}}} {connection_state.get("UlRate", 0)}')
-                metrics.append(f'download_bytes{{{labels}}} {connection_state.get("DlBytes", 0)}')
-                metrics.append(f'upload_bytes{{{labels}}} {connection_state.get("UlBytes", 0)}')
-                metrics.append(f'connection_time{{{labels}}} {connection_state.get("ConnectionTime", 0)}')
+                conn_dict = connection_state.model_dump()
+                metrics.append(f'connection_status{{{labels}}} {conn_dict.get("ConnectionStatus", 0)}')
+                metrics.append(f'speed_download{{{labels}}} {conn_dict.get("Speed_Dl", 0)}')
+                metrics.append(f'speed_upload{{{labels}}} {conn_dict.get("Speed_Ul", 0)}')
+                metrics.append(f'download_rate{{{labels}}} {conn_dict.get("DlRate", 0)}')
+                metrics.append(f'upload_rate{{{labels}}} {conn_dict.get("UlRate", 0)}')
+                metrics.append(f'download_bytes{{{labels}}} {conn_dict.get("DlBytes", 0)}')
+                metrics.append(f'upload_bytes{{{labels}}} {conn_dict.get("UlBytes", 0)}')
+                metrics.append(f'connection_time{{{labels}}} {conn_dict.get("ConnectionTime", 0)}')
 
             # SMS Metrics
             if sms_storage:
@@ -177,7 +182,7 @@ class MetricsHandler(BaseHTTPRequestHandler):
 def create_handler(exporter):
     """Create handler with exporter"""
     def handler(*args, **kwargs):
-        MetricsHandler(exporter, *args, **kwargs)
+        return MetricsHandler(exporter, *args, **kwargs)
     return handler
 
 
@@ -201,7 +206,7 @@ def main():
     args = parser.parse_args()
 
     # Initialize API
-    api = AlcatelModemAPI(args.url, args.password)
+    api = AlcatelClient(args.url, args.password)
 
     # Initialize exporter
     exporter = PrometheusExporter(api, args.interval)

@@ -10,7 +10,7 @@ from pathlib import Path
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from alcatel_modem_api import AlcatelModemAPI
+from alcatel_modem_api import AlcatelClient
 from alcatel_modem_api.constants import get_network_type
 
 NETWORK_MODES = {
@@ -56,37 +56,37 @@ def main():
         return
 
     # Initialize API
-    api = AlcatelModemAPI(args.url, args.password)
+    api = AlcatelClient(args.url, args.password)
 
     try:
         if args.command == "connect":
             print("Connecting to network...")
-            result = api.connect()
+            result = api.network.connect()
             print("✅ Connection initiated")
             print(f"Response: {result}")
 
         elif args.command == "disconnect":
             print("Disconnecting from network...")
-            result = api.disconnect()
+            result = api.network.disconnect()
             print("✅ Disconnection initiated")
             print(f"Response: {result}")
 
         elif args.command == "status":
-            connection_state = api.get_connection_state()
-            system_status = api.get_system_status()
-            network_settings = api.get_network_settings()
+            connection_state = api.network.get_connection_state()
+            system_status = api.system.get_status()
+            network_settings = api.network.get_settings()
 
             print("\n📊 Connection Status:")
-            print(f"  Connection Status: {connection_state.get('ConnectionStatus', 'Unknown')}")
-            print(f"  Network Name: {system_status.get('NetworkName', 'Unknown')}")
-            print(f"  Network Type: {get_network_type(system_status.get('NetworkType', 0))}")
-            print(f"  Signal Strength: {system_status.get('SignalStrength', 0)}")
+            print(f"  Connection Status: {connection_state.connection_status}")
+            print(f"  Network Name: {system_status.network_name}")
+            print(f"  Network Type: {get_network_type(system_status.network_type)}")
+            print(f"  Signal Strength: {system_status.signal_strength}")
             print(f"  Network Mode: {network_settings.get('NetworkMode', 'Unknown')}")
             print(f"  Network Selection Mode: {network_settings.get('NetselectionMode', 'Unknown')}")
 
         elif args.command == "network":
             if args.network_command == "get":
-                settings = api.get_network_settings()
+                settings = api.network.get_settings()
                 print("\n📡 Network Settings:")
                 print(f"  Network Mode: {settings.get('NetworkMode', 'Unknown')}")
                 print(f"  Network Selection Mode: {settings.get('NetselectionMode', 'Unknown')}")
@@ -96,22 +96,22 @@ def main():
                 print(f"Setting network mode to {args.mode.upper()} ({network_mode})...")
 
                 # Check if connected
-                connection_state = api.get_connection_state()
-                is_connected = connection_state.get("ConnectionStatus") == 2
+                connection_state = api.network.get_connection_state()
+                is_connected = connection_state.connection_status == 2
 
                 if is_connected:
                     print("⚠️  Modem is connected. Disconnecting first...")
-                    api.disconnect()
+                    api.network.disconnect()
                     import time
                     time.sleep(2)
 
-                result = api.set_network_settings(network_mode)
+                result = api.network.set_settings(network_mode)
                 print(f"✅ Network mode set to {args.mode.upper()}")
 
                 if is_connected:
                     print("Reconnecting...")
                     time.sleep(2)
-                    api.connect()
+                    api.network.connect()
                     print("✅ Reconnected")
 
     except Exception as e:

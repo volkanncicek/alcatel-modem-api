@@ -93,4 +93,3 @@ def test_sms_send_status_dict_completeness():
   assert 5 in SMS_SEND_STATUS  # Failed
   assert SMS_SEND_STATUS[2] == "Success"
   assert SMS_SEND_STATUS[5] == "Failed"
-

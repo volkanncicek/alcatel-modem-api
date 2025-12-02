@@ -1,51 +1,46 @@
 """
 Alcatel Modem API - Generic Python library for Alcatel LTE modems
+Modern namespace-based API with async support
 """
 
-from .api import (
+from .client import AlcatelClient, FileTokenStorage, MemoryTokenStorage, TokenStorageProtocol
+from .endpoints import DeviceEndpoint, NetworkEndpoint, SMSEndpoint, SystemEndpoint, WLANEndpoint
+from .exceptions import (
   AlcatelAPIError,
   AlcatelConnectionError,
-  AlcatelModemAPI,
+  AlcatelException,
   AlcatelTimeoutError,
-)
-from .auth import AuthenticationError, FileTokenStorage, MemoryTokenStorage, TokenStorageProtocol
-from .constants import (
-  CONNECTION_STATUSES,
-  NETWORK_TYPES,
-  PUBLIC_VERBS,
-  RESTRICTED_VERBS,
-  SMS_SEND_STATUS,
-  get_connection_status,
-  get_network_type,
-  get_sms_send_status,
+  AuthenticationError,
+  UnsupportedModemError,
 )
 from .models import ConnectionState, ExtendedStatus, NetworkInfo, SMSMessage, SystemStatus
-from .sms import SMSManager
 
 __version__ = "1.0.0"
+
 __all__ = [
-  "AlcatelModemAPI",
-  "SMSManager",
-  "AuthenticationError",
+    # Main client class
+    "AlcatelClient",
+  # Endpoints
+  "SMSEndpoint",
+  "NetworkEndpoint",
+  "WLANEndpoint",
+  "DeviceEndpoint",
+  "SystemEndpoint",
+  # Exceptions
+  "AlcatelException",
   "AlcatelConnectionError",
   "AlcatelAPIError",
   "AlcatelTimeoutError",
-  "NETWORK_TYPES",
-  "CONNECTION_STATUSES",
-  "SMS_SEND_STATUS",
-  "PUBLIC_VERBS",
-  "RESTRICTED_VERBS",
-  "get_network_type",
-  "get_connection_status",
-  "get_sms_send_status",
-  # Token storage
-  "TokenStorageProtocol",
-  "FileTokenStorage",
-  "MemoryTokenStorage",
-  # Typed models
+  "AuthenticationError",
+  "UnsupportedModemError",
+  # Models
   "SystemStatus",
   "ExtendedStatus",
   "NetworkInfo",
   "ConnectionState",
   "SMSMessage",
+  # Token storage
+  "TokenStorageProtocol",
+  "FileTokenStorage",
+  "MemoryTokenStorage",
 ]

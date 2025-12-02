@@ -11,7 +11,7 @@ from pathlib import Path
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from alcatel_modem_api import AlcatelModemAPI, SMSManager
+from alcatel_modem_api import AlcatelClient
 
 
 def wait_for_sms_response(api, sender_number="2222", timeout=60, check_interval=2):
@@ -19,7 +19,7 @@ def wait_for_sms_response(api, sender_number="2222", timeout=60, check_interval=
   Wait for SMS from a specific number
 
   Args:
-      api: AlcatelModemAPI instance
+      api: AlcatelClient instance
       sender_number: Sender phone number (e.g., "2222")
       timeout: Maximum wait time in seconds
       check_interval: Check interval in seconds
@@ -28,13 +28,12 @@ def wait_for_sms_response(api, sender_number="2222", timeout=60, check_interval=
   print(f"⏱️  Maximum wait time: {timeout} seconds")
   print()
 
-  sms = SMSManager(api)
   start_time = time.time()
   last_count = 0
 
   while time.time() - start_time < timeout:
     try:
-      storage = sms.get_sms_storage_state()
+      storage = api.sms.get_storage_state()
       unread_count = storage.get("UnreadSMSCount", 0)
 
       if unread_count > last_count:
@@ -64,21 +63,19 @@ def send_and_wait(api, phone_number, message, sender_number=None, timeout=60):
   Send SMS and wait for response
 
   Args:
-      api: AlcatelModemAPI instance
+      api: AlcatelClient instance
       phone_number: Recipient phone number
       message: Message text
       sender_number: Expected sender number (if None, waits for phone_number)
       timeout: Maximum wait time in seconds
   """
-  sms = SMSManager(api)
-
   print("📤 Sending SMS...")
   print(f"   Recipient: {phone_number}")
   print(f"   Message: {message}")
   print()
 
   try:
-    sms.send_sms(phone_number, message)
+    api.sms.send(phone_number, message)
     print("✅ SMS sent!")
     print()
 
@@ -106,7 +103,7 @@ def main():
 
   args = parser.parse_args()
 
-  api = AlcatelModemAPI(args.url, args.password)
+  api = AlcatelClient(args.url, args.password)
 
   if args.send:
     if not args.phone or not args.message:

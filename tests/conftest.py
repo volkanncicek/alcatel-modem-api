@@ -6,7 +6,9 @@ import os
 import tempfile
 
 import pytest
-import requests_mock
+import respx
+
+from alcatel_modem_api import AlcatelClient
 
 
 @pytest.fixture
@@ -19,22 +21,18 @@ def temp_session_file():
 
 @pytest.fixture
 def mock_api(temp_session_file):
-  """Create a mocked AlcatelModemAPI instance with temporary session file"""
-  from alcatel_modem_api import AlcatelModemAPI
-
-  with requests_mock.Mocker() as m:
-    api = AlcatelModemAPI(session_file=temp_session_file)
-    yield api, m
+  """Create a mocked AlcatelClient instance with temporary session file"""
+  with respx.mock:
+    client = AlcatelClient(session_file=temp_session_file)
+    yield client, respx
 
 
 @pytest.fixture
 def mock_api_with_password(temp_session_file):
-  """Create a mocked AlcatelModemAPI instance with password and temporary session file"""
-  from alcatel_modem_api import AlcatelModemAPI
-
-  with requests_mock.Mocker() as m:
-    api = AlcatelModemAPI(password="secret", session_file=temp_session_file)
-    yield api, m
+  """Create a mocked AlcatelClient instance with password and temporary session file"""
+  with respx.mock:
+    client = AlcatelClient(password="secret", session_file=temp_session_file)
+    yield client, respx
 
 
 @pytest.fixture

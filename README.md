@@ -37,11 +37,14 @@ This library has been tested with the following Alcatel modem models, but it mig
 ## Installation
 
 ```bash
-# Install dependencies
-uv pip install -r requirements.txt
+# Install from source (development)
+uv pip install -e .
 
 # Or using pip
-pip install -r requirements.txt
+pip install -e .
+
+# Or install from PyPI (when published)
+pip install alcatel-modem-api
 ```
 
 ## Project Structure
@@ -50,11 +53,19 @@ pip install -r requirements.txt
 alcatel_modem_api/
 ├── alcatel_modem_api/   # Main package
 │   ├── __init__.py      # Package exports
-│   ├── api.py           # Main API class (AlcatelModemAPI)
-│   ├── auth.py          # Authentication and token management
-│   ├── cli.py           # Command-line interface
+│   ├── client.py         # Core HTTP client (AlcatelClient)
+│   ├── cli.py           # Command-line interface (Typer)
 │   ├── constants.py     # Constants (network types, statuses, verbs)
-│   └── sms.py           # SMS operations (SMSManager)
+│   ├── exceptions.py   # Custom exceptions
+│   ├── models.py        # Pydantic data models
+│   ├── endpoints/       # Namespace endpoints
+│   │   ├── sms.py       # SMS operations
+│   │   ├── network.py   # Network operations
+│   │   ├── wlan.py      # WiFi operations
+│   │   ├── device.py    # Device management
+│   │   └── system.py    # System operations
+│   └── utils/           # Utility functions
+│       └── encryption.py # Encryption utilities
 ├── examples/            # Example scripts
 │   ├── README.md        # Examples documentation
 │   ├── poll.py          # Poll usage examples
@@ -63,7 +74,7 @@ alcatel_modem_api/
 │   ├── connection.py    # Connection management
 │   ├── prometheus_exporter.py # Prometheus metrics exporter
 │   ├── munin_exporter.py      # Munin metrics exporter
-│   ├── ussd.py          # USSD code examples
+│   └── ussd.py          # USSD code examples
 ├── pyproject.toml       # Python project configuration
 ├── README.md            # This file
 ├── requirements.txt     # Dependencies
@@ -74,11 +85,21 @@ alcatel_modem_api/
 
 ### Command Line Interface
 
+The CLI uses modern Typer-based commands with beautiful Rich output.
+
+**Note:** After installation, use the `alcatel` command. If not installed as a package, you can also use:
+```bash
+python -m alcatel_modem_api.cli system status --pretty
+```
+
 #### Basic Commands (No Login Required)
 
 ```bash
 # Get system status
-python -m alcatel_modem_api.cli -c GetSystemStatus --pretty
+alcatel system status --pretty
+
+# Or using run command
+alcatel run GetSystemStatus --pretty
 ```
 
 **Output example:**
@@ -105,10 +126,13 @@ python -m alcatel_modem_api.cli -c GetSystemStatus --pretty
 
 ```bash
 # Get SIM status
-python -m alcatel_modem_api.cli -c GetSimStatus --pretty
+alcatel run GetSimStatus --pretty
 
 # Get system info
-python -m alcatel_modem_api.cli -c GetSystemInfo --pretty
+alcatel run GetSystemInfo --pretty
+
+# Poll basic status
+alcatel system poll-basic --pretty
 ```
 
 #### Protected Commands (Login Required)
@@ -118,26 +142,25 @@ Commands that require login will automatically use a saved authentication token 
 **If you have a valid token:**
 ```bash
 # Token will be used automatically, no password needed
-python -m alcatel_modem_api.cli -c GetLanSettings --pretty
+alcatel run GetLanSettings --pretty
 ```
 
 **If token is missing or expired:**
 ```bash
 # Command will fail with authentication error
-python -m alcatel_modem_api.cli -c GetLanSettings --pretty
+alcatel run GetLanSettings --pretty
 ```
 
 **Error output:**
 ```
-The modem replied with an error message
-  Error code: -32699
-  Error message: Authentication Failure
+❌ Authentication error: Authentication failed: Authentication Failure
+   Tip: Use -p <password> to provide admin password
 ```
 
 **To login and save a new token:**
 ```bash
 # Pass the admin password to login and save token
-python -m alcatel_modem_api.cli -c GetLanSettings -p admin --pretty
+alcatel run GetLanSettings -p admin --pretty
 ```
 
 After successful login, the token is saved and subsequent commands will work without the password (until the token expires).
@@ -162,85 +185,141 @@ After successful login, the token is saved and subsequent commands will work wit
 **More examples:**
 ```bash
 # Get network info
-python -m alcatel_modem_api.cli -u http://192.168.1.1 -p admin -c GetNetworkInfo --pretty
+alcatel network info -u http://192.168.1.1 -p admin --pretty
 
 # Get WiFi settings
-python -m alcatel_modem_api.cli -u http://192.168.1.1 -p admin -c GetWlanSettings --pretty
+alcatel wlan settings -u http://192.168.1.1 -p admin --pretty
+
+# Poll extended status
+alcatel system poll-extended -u http://192.168.1.1 -p admin --pretty
 ```
 
 #### SMS Operations
 
 ```bash
 # Send SMS
-python -m alcatel_modem_api.cli -u http://192.168.1.1 -p admin sms send -n +1234567890 -m "Hello from Python!"
+alcatel sms send -n +1234567890 -m "Hello from Python!" -u http://192.168.1.1 -p admin
 
-# Get SMS send status
-python -m alcatel_modem_api.cli -u http://192.168.1.1 -p admin -c GetSendSMSResult --pretty
+# List SMS messages
+alcatel sms list -u http://192.168.1.1 -p admin --pretty
+
+# List SMS from specific contact
+alcatel sms list -c +1234567890 -u http://192.168.1.1 -p admin --pretty
+```
+
+#### Network Operations
+
+```bash
+# Connect to network
+alcatel network connect -u http://192.168.1.1 -p admin
+
+# Disconnect from network
+alcatel network disconnect -u http://192.168.1.1 -p admin
+
+# Get network info
+alcatel network info -u http://192.168.1.1 -p admin --pretty
 ```
 
 #### List Available Commands
 
 ```bash
-python -m alcatel_modem_api.cli --list
+# List public commands (no login required)
+alcatel list
+
+# List all commands
+alcatel list --all
 ```
 
 ### Python Library
 
 ```python
-from alcatel_modem_api import AlcatelModemAPI, SMSManager
+from alcatel_modem_api import AlcatelClient
 
-# Initialize API
-api = AlcatelModemAPI(url="http://192.168.1.1", password="admin")
+# Initialize client
+client = AlcatelClient(url="http://192.168.1.1", password="admin")
 
-# Get system status
-status = api.get_system_status()
-print(f"Network: {status['NetworkName']}")
-print(f"Signal: {status['SignalStrength']}/5")
+# Get system status (returns Pydantic model)
+status = client.system.get_status()
+print(f"Network: {status.network_name}")
+print(f"Signal: {status.signal_strength}/5")
 
-# Get network info (requires login)
-network = api.get_network_info()
-print(network)
+# Get network info (requires login, returns Pydantic model)
+network = client.network.get_info()
+print(f"RSSI: {network.rssi} dBm")
+print(f"RSRP: {network.rsrp} dBm")
 
 # Send SMS
-sms = SMSManager(api)
-sms.send_sms("+1234567890", "Hello from Python!")
+client.sms.send("+1234567890", "Hello from Python!")
 
-# Get SMS list
-sms_list = sms.get_sms_list()
-print(sms_list)
+# Get SMS list (returns list of SMSMessage models)
+sms_list = client.sms.list()
+for msg in sms_list:
+    print(f"{msg.phone_number}: {msg.content}")
+
+# Async support
+import asyncio
+
+async def main():
+    status = await client.system.get_status_async()
+    print(status.network_name)
+
+asyncio.run(main())
 ```
 
 ## API Reference
 
-### AlcatelModemAPI
+### AlcatelClient
 
 Main API class for interacting with Alcatel modems.
 
-#### Methods
+#### Core Methods
 
-- `run(command, **params)`: Execute any API command
-- `run_pretty(command, **params)`: Execute command and return pretty JSON
-- `get_system_status()`: Get system status
-- `get_sim_status()`: Get SIM card status
-- `get_network_info()`: Get network information (requires login)
-- `get_system_info()`: Get system information
-- `get_connection_state()`: Get connection state (requires login)
-- `get_wlan_settings()`: Get WiFi settings (requires login)
-- `get_lan_settings()`: Get LAN settings (requires login)
+- `run(command, **params)`: Execute any API command (sync)
+- `run_async(command, **params)`: Execute any API command (async)
 - `logout()`: Clear authentication token
+- `set_password(password)`: Set admin password for automatic login
 
-### SMSManager
+#### Namespace Endpoints
 
-Manages SMS operations.
+The API is organized into namespaces for better organization:
 
-#### Methods
+**System Endpoint** (`client.system`):
+- `get_status()`: Get system status (returns `SystemStatus` model)
+- `get_info()`: Get system information
+- `get_sim_status()`: Get SIM card status
+- `poll_basic_status()`: Poll basic status (no login required)
+- `poll_extended_status()`: Poll extended status (requires login, returns `ExtendedStatus` model)
+- `send_ussd_code(code, wait_seconds=5)`: Send USSD code
 
-- `send_sms(phone_number, message, timeout=30)`: Send SMS message
-- `get_send_status()`: Get SMS send status
-- `get_sms_list(contact_number=None)`: Get SMS list
-- `get_single_sms(sms_id)`: Get single SMS by ID
-- `get_sms_storage_state()`: Get SMS storage state
-- `get_sms_settings()`: Get SMS settings
+**Network Endpoint** (`client.network`):
+- `get_info()`: Get network information (returns `NetworkInfo` model)
+- `get_settings()`: Get network settings
+- `set_settings(network_mode, net_selection_mode=0)`: Set network settings
+- `connect()`: Connect to network
+- `disconnect()`: Disconnect from network
+- `get_connection_state()`: Get connection state (returns `ConnectionState` model)
+
+**SMS Endpoint** (`client.sms`):
+- `send(phone_number, message, timeout=30)`: Send SMS message
+- `list(contact_number=None)`: Get SMS list (returns list of `SMSMessage` models)
+- `get(sms_id)`: Get single SMS by ID
+- `get_storage_state()`: Get SMS storage state
+- `get_settings()`: Get SMS settings
+- `delete(sms_id)`: Delete SMS by ID
+
+**WLAN Endpoint** (`client.wlan`):
+- `get_settings()`: Get WiFi settings
+- `set_settings(...)`: Set WiFi settings
+- `get_state()`: Get WiFi state
+- `get_statistics()`: Get WiFi statistics
+
+**Device Endpoint** (`client.device`):
+- `get_connected_list()`: Get connected devices
+- `get_block_list()`: Get blocked devices
+- `block(mac_address)`: Block device
+- `unblock(mac_address)`: Unblock device
+
+All endpoints have both sync and async versions (e.g., `get_status()` and `get_status_async()`).
 
 ## Available Commands
 
@@ -355,7 +434,7 @@ Manages SMS operations.
 If your modem is at a different IP address:
 
 ```bash
-python -m alcatel_modem_api.cli -u http://192.168.0.1 -c GetSystemStatus
+alcatel system status -u http://192.168.0.1
 ```
 
 ## Authentication
@@ -369,7 +448,7 @@ Alcatel modems use different authentication methods depending on the model. This
 - **Token**: Plain token (no encryption needed)
 - **Example**: 
   ```python
-  api = AlcatelModemAPI("http://192.168.1.1", "admin")
+  client = AlcatelClient("http://192.168.1.1", "admin")
   # Login with plain username/password
   ```
 
@@ -379,7 +458,7 @@ Alcatel modems use different authentication methods depending on the model. This
 - **Note**: EE branded variant, compatible with BT branded HH70
 - **Example**:
   ```python
-  api = AlcatelModemAPI("http://192.168.1.1", "admin")
+  client = AlcatelClient("http://192.168.1.1", "admin")
   # API automatically handles authentication
   ```
 
@@ -389,9 +468,9 @@ Alcatel modems use different authentication methods depending on the model. This
 - **Encryption Key**: `"e5dl12XYVggihggafXWf0f2YSf2Xngd1"` (found by reverse engineering Android app)
 - **Example**:
   ```python
-  # Automatically handled by AlcatelModemAPI
-  api = AlcatelModemAPI("http://192.168.1.1", "admin")
-  # API will try unencrypted first, then encrypted
+  # Automatically handled by AlcatelClient
+  client = AlcatelClient("http://192.168.1.1", "admin")
+  # Client will try unencrypted first, then encrypted
   ```
 
 #### MW45V
@@ -451,14 +530,14 @@ headers = {
 ### Check Modem Status
 
 ```bash
-python -m alcatel_modem_api.cli -c GetSystemStatus --pretty
+alcatel system status --pretty
 ```
 
 ### Send SMS Notification
 
 ```bash
 # Using CLI
-python -m alcatel_modem_api.cli -u http://192.168.1.1 -p admin sms send -n +1234567890 -m "System backup completed!"
+alcatel sms send -n +1234567890 -m "System backup completed!" -u http://192.168.1.1 -p admin
 
 # Using helper script
 python examples/sms.py -u http://192.168.1.1 -p admin --send --phone +1234567890 --message "System backup completed!"
@@ -467,19 +546,18 @@ python examples/sms.py -u http://192.168.1.1 -p admin --send --phone +1234567890
 ### Python Script Example
 
 ```python
-from alcatel_modem_api import AlcatelModemAPI, SMSManager
+from alcatel_modem_api import AlcatelClient
 
-api = AlcatelModemAPI("http://192.168.1.1", "admin")
-sms = SMSManager(api)
+client = AlcatelClient("http://192.168.1.1", "admin")
 
 # Check connection
-status = api.get_system_status()
-if status["ConnectionStatus"] == 2:
+status = client.system.get_status()
+if status.connection_status == 2:
     print("✅ Connected to network")
     
 # Send notification
 try:
-    sms.send_sms("+1234567890", "Modem is online and connected!")
+    client.sms.send("+1234567890", "Modem is online and connected!")
     print("✅ Notification sent")
 except Exception as e:
     print(f"❌ Failed to send: {e}")
@@ -498,15 +576,14 @@ If your mobile ISP contract provides unlimited SMS messages, you can use the mod
 **Example: Node-RED Integration**
 
 ```python
-from alcatel_modem_api import AlcatelModemAPI, SMSManager
+from alcatel_modem_api import AlcatelClient
 
-api = AlcatelModemAPI("http://192.168.1.1", "admin")
-sms = SMSManager(api)
+client = AlcatelClient("http://192.168.1.1", "admin")
 
 def send_alert(message):
     """Send SMS alert via modem"""
     try:
-        sms.send_sms("+1234567890", message)
+        client.sms.send("+1234567890", message)
         return True
     except Exception as e:
         print(f"Failed to send SMS: {e}")
@@ -527,8 +604,8 @@ if __name__ == "__main__":
 backup_result=$(./backup_script.sh)
 
 # Send SMS notification
-python -m alcatel_modem_api.cli -u http://192.168.1.1 -p admin \
-    sms send -n +1234567890 -m "Backup completed: $backup_result"
+alcatel sms send -n +1234567890 -m "Backup completed: $backup_result" \
+    -u http://192.168.1.1 -p admin
 ```
 
 ### Signal Strength Optimization
@@ -553,7 +630,7 @@ See `examples/signal.py` for more options.
 Query your mobile operator via SMS:
 
 ```bash
-python -m alcatel_modem_api.cli -u http://192.168.1.1 -p admin sms send -n 1234 -m "KALAN"
+alcatel sms send -n 1234 -m "KALAN" -u http://192.168.1.1 -p admin
 python examples/sms.py -p admin --wait --sender 1234 --timeout 30
 ```
 
@@ -599,13 +676,16 @@ Get started quickly with these practical examples:
 
 ```bash
 # Check modem status (no password needed)
+alcatel system status --pretty
+
+# Or using poll script
 python examples/poll.py --basic --pretty
 
 # Monitor signal strength
 python examples/signal.py -u http://192.168.1.1 -p admin --extended
 
 # Send SMS
-python -m alcatel_modem_api.cli -u http://192.168.1.1 -p admin sms send -n 1234 -m "KALAN"
+alcatel sms send -n 1234 -m "KALAN" -u http://192.168.1.1 -p admin
 
 # Check connection status
 python examples/connection.py -u http://192.168.1.1 -p admin status
