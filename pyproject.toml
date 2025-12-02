@@ -49,11 +49,6 @@ dev = [
 security = [
   "keyring>=24.0.0",
 ]
-docs = [
-  "mkdocs>=1.5.0",
-  "mkdocs-material>=9.0.0",
-  "mkdocstrings[python]>=0.23.0",
-]
 
 [project.scripts]
 alcatel = "alcatel_modem_api.cli:cli"
@@ -80,7 +75,6 @@ known-first-party = ["alcatel_modem_api"]
 
 [project.urls]
 Homepage = "https://github.com/volkanncicek/alcatel-modem-api"
-Documentation = "https://volkanncicek.github.io/alcatel-modem-api"
 Repository = "https://github.com/volkanncicek/alcatel-modem-api"
 Issues = "https://github.com/volkanncicek/alcatel-modem-api/issues"
 Changelog = "https://github.com/volkanncicek/alcatel-modem-api/blob/main/CHANGELOG.md"

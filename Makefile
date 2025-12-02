@@ -1,4 +1,4 @@
-.PHONY: install install-dev test lint format docs clean
+.PHONY: install install-dev test lint format clean
 
 # Install package in development mode
 install:
@@ -31,11 +31,6 @@ format-check:
 # Run all checks (lint + type-check + format-check)
 check: lint type-check format-check
 
-# Build documentation (if using mkdocs)
-docs:
-	@echo "Documentation is in README.md"
-	@echo "To set up MkDocs, run: uv pip install mkdocs mkdocs-material mkdocstrings[python]"
-
 # Clean build artifacts
 clean:
 	@find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
@@ -53,7 +48,6 @@ help:
 	@echo "  format       - Format code"
 	@echo "  format-check - Check code formatting"
 	@echo "  check        - Run all checks (lint + type-check + format-check)"
-	@echo "  docs         - Show documentation info"
 	@echo "  clean        - Clean build artifacts"
 	@echo "  help         - Show this help message"
 
