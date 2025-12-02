@@ -8,11 +8,11 @@ from pathlib import Path
 from typing import Optional
 
 try:
-  import tomli
+  import tomli  # type: ignore[import-not-found]
   import tomli_w
 except ImportError:
   tomli = None
-  tomli_w = None
+  tomli_w = None  # type: ignore[assignment]
 
 CONFIG_DIR = Path.home() / ".config" / "alcatel-api"
 CONFIG_PATH = CONFIG_DIR / "config.toml"
@@ -34,7 +34,7 @@ def load_config() -> dict[str, str]:
   try:
     with open(CONFIG_PATH, "rb") as f:
       config = tomli.load(f)
-      return config.get("alcatel", {})
+      return config.get("alcatel", {})  # type: ignore[no-any-return]
   except Exception:
     return {}
 

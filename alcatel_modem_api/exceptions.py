@@ -2,6 +2,8 @@
 Exception classes for Alcatel Modem API
 """
 
+from typing import Union
+
 
 class AlcatelError(Exception):
   """Base exception for all Alcatel Modem API errors"""
@@ -18,7 +20,7 @@ class AlcatelConnectionError(AlcatelError):
 class AlcatelAPIError(AlcatelError):
   """Raised when API returns an error"""
 
-  def __init__(self, message: str, error_code: int | str | None = None):
+  def __init__(self, message: str, error_code: Union[int, str, None] = None):
     """
     Initialize API error
 

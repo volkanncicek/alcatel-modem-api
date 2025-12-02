@@ -3,7 +3,7 @@ Pydantic models for Alcatel Modem API responses
 Provides better IDE autocompletion, type safety, and data validation
 """
 
-from typing import Any
+from typing import Any, Dict, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -13,14 +13,14 @@ class SystemStatus(BaseModel):
 
   connection_status: int = Field(alias="ConnectionStatus", default=0)
   signal_strength: int = Field(alias="SignalStrength", default=0)
-  network_name: str | None = Field(alias="NetworkName", default=None)
+  network_name: Union[str, None] = Field(alias="NetworkName", default=None)
   network_type: int = Field(alias="NetworkType", default=0)
-  imei: str | None = Field(alias="IMEI", default=None)
-  iccid: str | None = Field(alias="ICCID", default=None)
-  device: str | None = Field(alias="DeviceName", default=None)
+  imei: Union[str, None] = Field(alias="IMEI", default=None)
+  iccid: Union[str, None] = Field(alias="ICCID", default=None)
+  device: Union[str, None] = Field(alias="DeviceName", default=None)
 
   @classmethod
-  def from_dict(cls, data: dict[str, Any]) -> "SystemStatus":
+  def from_dict(cls, data: Dict[str, Any]) -> "SystemStatus":
     """Create SystemStatus from API response dict"""
     return cls.model_validate(data)
 
@@ -38,18 +38,18 @@ class ExtendedStatus(BaseModel):
   bytes_out: int = Field(default=0)
   bytes_in_rate: int = Field(default=0)
   bytes_out_rate: int = Field(default=0)
-  ipv4_addr: str | None = Field(default=None)
-  ipv6_addr: str | None = Field(default=None)
-  network_name: str | None = Field(default=None)
+  ipv4_addr: Union[str, None] = Field(default=None)
+  ipv6_addr: Union[str, None] = Field(default=None)
+  network_name: Union[str, None] = Field(default=None)
   network_type: int = Field(default=0)
   strength: int = Field(default=0)
-  rssi: int | None = Field(default=None)
-  rsrp: int | None = Field(default=None)
-  sinr: int | None = Field(default=None)
-  rsrq: int | None = Field(default=None)
+  rssi: Union[int, None] = Field(default=None)
+  rsrp: Union[int, None] = Field(default=None)
+  sinr: Union[int, None] = Field(default=None)
+  rsrq: Union[int, None] = Field(default=None)
 
   @classmethod
-  def from_dict(cls, data: dict[str, Any]) -> "ExtendedStatus":
+  def from_dict(cls, data: Dict[str, Any]) -> "ExtendedStatus":
     """Create ExtendedStatus from API response dict"""
     return cls.model_validate(data)
 
@@ -60,9 +60,9 @@ class SMSMessage(BaseModel):
   sms_id: int = Field(alias="SMSId", default=-1)
   phone_number: str = Field(alias="PhoneNumber", default="")
   content: str = Field(alias="SMSContent", default="")
-  timestamp: str | None = Field(alias="SMSTime", default=None)
-  status: int | None = Field(alias="Status", default=None)
-  read: bool | None = Field(alias="Read", default=None)
+  timestamp: Union[str, None] = Field(alias="SMSTime", default=None)
+  status: Union[int, None] = Field(alias="Status", default=None)
+  read: Union[bool, None] = Field(alias="Read", default=None)
 
   @model_validator(mode="before")
   @classmethod
@@ -83,7 +83,7 @@ class SMSMessage(BaseModel):
     return data
 
   @classmethod
-  def from_dict(cls, data: dict[str, Any]) -> "SMSMessage":
+  def from_dict(cls, data: Dict[str, Any]) -> "SMSMessage":
     """Create SMSMessage from API response dict"""
     return cls.model_validate(data)
 
@@ -93,17 +93,17 @@ class SMSMessage(BaseModel):
 class NetworkInfo(BaseModel):
   """Network information"""
 
-  network_name: str | None = Field(alias="NetworkName", default=None)
+  network_name: Union[str, None] = Field(alias="NetworkName", default=None)
   network_type: int = Field(alias="NetworkType", default=0)
   signal_strength: int = Field(alias="SignalStrength", default=0)
-  rssi: int | None = Field(alias="RSSI", default=None)
-  rsrp: int | None = Field(alias="RSRP", default=None)
-  sinr: int | None = Field(alias="SINR", default=None)
-  rsrq: int | None = Field(alias="RSRQ", default=None)
+  rssi: Union[int, None] = Field(alias="RSSI", default=None)
+  rsrp: Union[int, None] = Field(alias="RSRP", default=None)
+  sinr: Union[int, None] = Field(alias="SINR", default=None)
+  rsrq: Union[int, None] = Field(alias="RSRQ", default=None)
 
   @field_validator("rssi", "rsrp", "sinr", "rsrq", mode="before")
   @classmethod
-  def validate_signal_metric(cls, v: Any) -> int | None:
+  def validate_signal_metric(cls, v: Any) -> Union[int, None]:
     """Convert signal metrics to int or None"""
     if v is None:
       return None
@@ -113,7 +113,7 @@ class NetworkInfo(BaseModel):
     return None
 
   @classmethod
-  def from_dict(cls, data: dict[str, Any]) -> "NetworkInfo":
+  def from_dict(cls, data: Dict[str, Any]) -> "NetworkInfo":
     """Create NetworkInfo from API response dict"""
     return cls.model_validate(data)
 
@@ -146,8 +146,8 @@ class ConnectionState(BaseModel):
   bytes_out: int = Field(alias="UlBytes", default=0)
   bytes_in_rate: int = Field(alias="DlRate", default=0)
   bytes_out_rate: int = Field(alias="UlRate", default=0)
-  ipv4_addr: str | None = Field(alias="IPv4Adrress", default=None)
-  ipv6_addr: str | None = Field(alias="IPv6Adrress", default=None)
+  ipv4_addr: Union[str, None] = Field(alias="IPv4Adrress", default=None)
+  ipv6_addr: Union[str, None] = Field(alias="IPv6Adrress", default=None)
 
   @model_validator(mode="before")
   @classmethod
@@ -163,7 +163,7 @@ class ConnectionState(BaseModel):
     return data
 
   @classmethod
-  def from_dict(cls, data: dict[str, Any]) -> "ConnectionState":
+  def from_dict(cls, data: Dict[str, Any]) -> "ConnectionState":
     """Create ConnectionState from API response dict"""
     return cls.model_validate(data)
 

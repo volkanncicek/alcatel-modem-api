@@ -6,13 +6,13 @@ Falls back to file storage if keyring is not available
 
 import logging
 from pathlib import Path
-from typing import Protocol
+from typing import Protocol, Union
 
 logger = logging.getLogger(__name__)
 
 # Try to import keyring, but make it optional
 try:
-  import keyring
+  import keyring  # type: ignore[import-not-found]
 
   KEYRING_AVAILABLE = True
 except ImportError:
@@ -44,7 +44,7 @@ class KeyringTokenStorage:
   Uses keyring username: "session-token"
   """
 
-  def __init__(self, session_file: str | None = None, use_keyring: bool = True):
+  def __init__(self, session_file: Union[str, None] = None, use_keyring: bool = True):
     """
     Initialize keyring-based token storage
 
@@ -95,7 +95,7 @@ class KeyringTokenStorage:
         token = keyring.get_password(self.service_name, self.username)
         if token:
           logger.debug("Token retrieved from system keyring")
-          return token
+          return token  # type: ignore[no-any-return]
       except Exception as e:
         logger.debug(f"Failed to get token from keyring, trying file: {e}")
 

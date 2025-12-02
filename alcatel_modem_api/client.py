@@ -8,7 +8,7 @@ import os
 import platform
 import stat
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Dict, Protocol, Union
 
 import httpx
 
@@ -65,7 +65,7 @@ def format_http_error(status_code: int, response_text: str = "") -> str:
     return status_msg
 
 
-def detect_modem_brand(response: httpx.Response) -> str | None:
+def detect_modem_brand(response: httpx.Response) -> Union[str, None]:
   """
   Detect modem brand from HTTP response headers and body
 
@@ -142,7 +142,7 @@ class TokenStorageProtocol(Protocol):
 class FileTokenStorage:
   """File-based token storage implementation"""
 
-  def __init__(self, session_file: str | None = None):
+  def __init__(self, session_file: Union[str, None] = None):
     """
     Initialize file-based token storage
 
@@ -154,7 +154,7 @@ class FileTokenStorage:
       session_file = str(home / ".alcatel_modem_session")
 
     self.session_file = session_file
-    self._token: str | None = None
+    self._token: Union[str, None] = None
     self._restore_token()
 
   def save_token(self, token: str) -> None:
@@ -201,9 +201,9 @@ class FileTokenStorage:
 class MemoryTokenStorage:
   """In-memory token storage implementation (useful for web apps, testing)"""
 
-  def __init__(self):
+  def __init__(self) -> None:
     """Initialize in-memory token storage"""
-    self._token: str | None = None
+    self._token: Union[str, None] = None
 
   def save_token(self, token: str) -> None:
     """Save token to memory"""
@@ -229,10 +229,10 @@ class AlcatelClient:
   def __init__(
     self,
     url: str = "http://192.168.1.1",
-    password: str | None = None,
-    session_file: str | None = None,
+    password: Union[str, None] = None,
+    session_file: Union[str, None] = None,
     timeout: int = 10,
-    token_storage: TokenStorageProtocol | None = None,
+    token_storage: Union[TokenStorageProtocol, None] = None,
   ):
     """
     Initialize Alcatel Modem API client
@@ -285,7 +285,7 @@ class AlcatelClient:
     )
 
     # Async client will be created on first use
-    self._async_client: httpx.AsyncClient | None = None
+    self._async_client: Union[httpx.AsyncClient, None] = None
 
     # Initialize endpoint namespaces
     from .endpoints.device import DeviceEndpoint
@@ -304,7 +304,7 @@ class AlcatelClient:
     """Set admin password"""
     self._password = password
 
-  def _raise_unsupported_modem_error(self, resp: httpx.Response, detected_brand: str | None) -> None:
+  def _raise_unsupported_modem_error(self, resp: httpx.Response, detected_brand: Union[str, None]) -> None:
     """
     Raise UnsupportedModemError with appropriate message
 
@@ -556,9 +556,9 @@ class AlcatelClient:
     if "result" not in result:
       raise AlcatelAPIError(f"Unexpected response: {result}")
 
-    return result["result"]
+    return result["result"]  # type: ignore[no-any-return]
 
-  async def _run_command_async(self, command: str, **params: Any) -> dict[str, Any]:
+  async def _run_command_async(self, command: str, **params: Any) -> Dict[str, Any]:
     """
     Execute a JSON-RPC command on the modem (async)
 
@@ -641,9 +641,9 @@ class AlcatelClient:
     if "result" not in result:
       raise AlcatelAPIError(f"Unexpected response: {result}")
 
-    return result["result"]
+    return result["result"]  # type: ignore[no-any-return]
 
-  def run(self, command: str, **params: Any) -> dict[str, Any]:
+  def run(self, command: str, **params: Any) -> Dict[str, Any]:
     """
     Run a command (with automatic login if needed) - sync
 
@@ -704,7 +704,7 @@ class AlcatelClient:
     """Context manager entry (sync)"""
     return self
 
-  def __exit__(self, exc_type, exc_value, traceback) -> None:
+  def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
     """Context manager exit (sync)"""
     self.close()
 
@@ -712,6 +712,6 @@ class AlcatelClient:
     """Context manager entry (async)"""
     return self
 
-  async def __aexit__(self, exc_type, exc_value, traceback) -> None:
+  async def __aexit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
     """Context manager exit (async)"""
     await self.aclose()

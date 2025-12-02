@@ -7,7 +7,7 @@ Built with Typer and Rich for beautiful terminal output
 import json
 import sys
 from time import sleep
-from typing import Annotated, Optional
+from typing import Annotated, Any, Dict, List, Optional
 
 import typer
 from rich.align import Align
@@ -74,7 +74,7 @@ app.add_typer(sms_app, name="sms")
 
 
 @sms_app.command("send")
-def sms_send(
+def sms_send(  # type: ignore[no-untyped-def]
   number: Annotated[str, typer.Option("-n", "--number", help="Phone number")],
   message: Annotated[str, typer.Option("-m", "--message", help="SMS message text")],
   url: str = url_option,
@@ -99,7 +99,7 @@ def sms_send(
 
 
 @sms_app.command("list")
-def sms_list(
+def sms_list(  # type: ignore[no-untyped-def]
   contact: Annotated[Optional[str], typer.Option("-c", "--contact", help="Filter by contact number")] = None,
   url: str = url_option,
   password: Optional[str] = password_option,
@@ -161,7 +161,7 @@ app.add_typer(system_app, name="system")
 
 
 @system_app.command("status")
-def system_status(
+def system_status(  # type: ignore[no-untyped-def]
   url: str = url_option,
   password: Optional[str] = password_option,
   pretty: bool = pretty_option,
@@ -194,7 +194,7 @@ def system_status(
 
 
 @system_app.command("poll-basic")
-def poll_basic(
+def poll_basic(  # type: ignore[no-untyped-def]
   url: str = url_option,
   pretty: bool = pretty_option,
 ):
@@ -214,7 +214,7 @@ def poll_basic(
 
 
 @system_app.command("poll-extended")
-def poll_extended(
+def poll_extended(  # type: ignore[no-untyped-def]
   url: str = url_option,
   password: Optional[str] = password_option,
   pretty: bool = pretty_option,
@@ -242,7 +242,7 @@ def poll_extended(
 
 
 @system_app.command("monitor")
-def system_monitor(
+def system_monitor(  # type: ignore[no-untyped-def]
   url: str = url_option,
   password: Optional[str] = password_option,
   interval: float = typer.Option(1.0, help="Update interval in seconds"),
@@ -255,7 +255,7 @@ def system_monitor(
   try:
     client = get_client(url, password)
 
-    def generate_layout(status) -> Layout:
+    def generate_layout(status: Any) -> Layout:
       layout = Layout()
       layout.split_column(Layout(name="header", size=3), Layout(name="body", ratio=1))
       layout["body"].split_row(Layout(name="signal"), Layout(name="traffic"))
@@ -307,7 +307,7 @@ app.add_typer(network_app, name="network")
 
 
 @network_app.command("info")
-def network_info(
+def network_info(  # type: ignore[no-untyped-def]
   url: Optional[str] = url_option,
   password: Optional[str] = password_option,
   pretty: bool = pretty_option,
@@ -339,7 +339,7 @@ def network_info(
 
 
 @network_app.command("connect")
-def network_connect(
+def network_connect(  # type: ignore[no-untyped-def]
   url: str = url_option,
   password: Optional[str] = password_option,
   pretty: bool = pretty_option,
@@ -365,7 +365,7 @@ def network_connect(
 
 
 @network_app.command("disconnect")
-def network_disconnect(
+def network_disconnect(  # type: ignore[no-untyped-def]
   url: str = url_option,
   password: Optional[str] = password_option,
   pretty: bool = pretty_option,
@@ -392,7 +392,7 @@ def network_disconnect(
 
 # Generic command execution
 @app.command("run")
-def run_command(
+def run_command(  # type: ignore[no-untyped-def]
   command: Annotated[str, typer.Argument(help="Command to execute")],
   url: Optional[str] = url_option,
   password: Optional[str] = password_option,
@@ -420,7 +420,7 @@ def run_command(
 
 # Configuration command
 @app.command("configure")
-def configure(
+def configure(  # type: ignore[no-untyped-def]
   url: Annotated[Optional[str], typer.Option("-u", "--url", help="Modem URL")] = None,
   password: Annotated[Optional[str], typer.Option("-p", "--password", help="Admin password (optional)")] = None,
 ):
@@ -463,7 +463,7 @@ def configure(
 
 # Doctor command for diagnostics
 @app.command("doctor")
-def doctor(
+def doctor(  # type: ignore[no-untyped-def]
   url: str = url_option,
   password: Optional[str] = password_option,
 ):
@@ -472,7 +472,7 @@ def doctor(
   console.print("=" * 60)
   console.print()
 
-  diagnostics = {
+  diagnostics: Dict[str, Any] = {
     "library_version": "1.0.0",  # TODO: Get from __version__
     "python_version": sys.version.split()[0],
     "connection": {},
@@ -589,7 +589,7 @@ def doctor(
 
 # List commands
 @app.command("list")
-def list_commands(
+def list_commands(  # type: ignore[no-untyped-def]
   all_commands: Annotated[bool, typer.Option("--all", help="Show all commands")] = False,
 ):
   """List available commands"""
@@ -620,7 +620,7 @@ def list_commands(
     console.print("Use '--all' to see all available commands")
 
 
-def cli():
+def cli() -> None:
   """CLI entry point for setuptools"""
   app()
 
