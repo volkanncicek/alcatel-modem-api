@@ -8,7 +8,7 @@ import os
 import platform
 import stat
 from pathlib import Path
-from typing import Any, Dict, Protocol, Union
+from typing import Any, Protocol, Union
 
 import httpx
 
@@ -558,7 +558,7 @@ class AlcatelClient:
 
     return result["result"]  # type: ignore[no-any-return]
 
-  async def _run_command_async(self, command: str, **params: Any) -> Dict[str, Any]:
+  async def _run_command_async(self, command: str, **params: Any) -> dict[str, Any]:
     """
     Execute a JSON-RPC command on the modem (async)
 
@@ -643,7 +643,7 @@ class AlcatelClient:
 
     return result["result"]  # type: ignore[no-any-return]
 
-  def run(self, command: str, **params: Any) -> Dict[str, Any]:
+  def run(self, command: str, **params: Any) -> dict[str, Any]:
     """
     Run a command (with automatic login if needed) - sync
 

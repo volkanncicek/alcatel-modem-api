@@ -7,7 +7,8 @@ from __future__ import annotations
 
 import datetime
 import time
-from typing import Any, Callable, Dict, List, Union
+from collections.abc import Sequence
+from typing import Any
 
 from ..client import AlcatelClient
 from ..exceptions import AlcatelAPIError, AlcatelTimeoutError, AuthenticationError
@@ -142,7 +143,7 @@ class SMSEndpoint:
 
     raise AlcatelTimeoutError(f"SMS send timeout after {timeout} seconds")
 
-  def get_send_status(self) -> Dict[str, Any]:
+  def get_send_status(self) -> dict[str, Any]:
     """
     Get SMS send status
 
@@ -151,7 +152,7 @@ class SMSEndpoint:
     """
     return self._client.run("GetSendSMSResult")
 
-  async def get_send_status_async(self) -> Dict[str, Any]:
+  async def get_send_status_async(self) -> dict[str, Any]:
     """
     Get SMS send status (async)
 
@@ -160,7 +161,7 @@ class SMSEndpoint:
     """
     return await self._client.run_async("GetSendSMSResult")
 
-  def list(self, contact_number: Union[str, None] = None) -> List[SMSMessage]:
+  def list(self, contact_number: str | None = None) -> Sequence[SMSMessage]:
     """
     Get SMS list
 
@@ -201,7 +202,7 @@ class SMSEndpoint:
 
     return []
 
-  async def list_async(self, contact_number: Union[str, None] = None) -> List[SMSMessage]:
+  async def list_async(self, contact_number: str | None = None) -> Sequence[SMSMessage]:
     """
     Get SMS list (async)
 
@@ -242,7 +243,7 @@ class SMSEndpoint:
 
     return []
 
-  def get_contact_list(self) -> List[Dict[str, Any]]:
+  def get_contact_list(self) -> Sequence[dict[str, Any]]:
     """Get SMS contact list"""
     result = self._client.run("GetSMSContactList")
     # Handle different response formats
@@ -256,7 +257,7 @@ class SMSEndpoint:
       return []
     return []
 
-  async def get_contact_list_async(self) -> List[Dict[str, Any]]:
+  async def get_contact_list_async(self) -> Sequence[dict[str, Any]]:
     """Get SMS contact list (async)"""
     result = await self._client.run_async("GetSMSContactList")
     # Handle different response formats
@@ -270,7 +271,7 @@ class SMSEndpoint:
       return []
     return []
 
-  def get(self, sms_id: int) -> Dict[str, Any]:
+  def get(self, sms_id: int) -> dict[str, Any]:
     """
     Get a single SMS by ID
 
@@ -282,7 +283,7 @@ class SMSEndpoint:
     """
     return self._client.run("GetSingleSMS", SMSId=sms_id)
 
-  async def get_async(self, sms_id: int) -> Dict[str, Any]:
+  async def get_async(self, sms_id: int) -> dict[str, Any]:
     """
     Get a single SMS by ID (async)
 
@@ -294,23 +295,23 @@ class SMSEndpoint:
     """
     return await self._client.run_async("GetSingleSMS", SMSId=sms_id)
 
-  def get_storage_state(self) -> Dict[str, Any]:
+  def get_storage_state(self) -> dict[str, Any]:
     """Get SMS storage state"""
     return self._client.run("GetSMSStorageState")
 
-  async def get_storage_state_async(self) -> Dict[str, Any]:
+  async def get_storage_state_async(self) -> dict[str, Any]:
     """Get SMS storage state (async)"""
     return await self._client.run_async("GetSMSStorageState")
 
-  def get_settings(self) -> Dict[str, Any]:
+  def get_settings(self) -> dict[str, Any]:
     """Get SMS settings"""
     return self._client.run("GetSMSSettings")
 
-  async def get_settings_async(self) -> Dict[str, Any]:
+  async def get_settings_async(self) -> dict[str, Any]:
     """Get SMS settings (async)"""
     return await self._client.run_async("GetSMSSettings")
 
-  def get_content_list(self, contact_id: int, page: int = 0) -> Dict[str, Any]:
+  def get_content_list(self, contact_id: int, page: int = 0) -> dict[str, Any]:
     """
     Get SMS content list for a specific contact (requires login)
 
@@ -340,7 +341,7 @@ class SMSEndpoint:
       return {"PhoneNumber": [], "SMSContentList": result, "TotalPageCount": 1}
     return {"PhoneNumber": [], "SMSContentList": [], "TotalPageCount": 0}
 
-  async def get_content_list_async(self, contact_id: int, page: int = 0) -> Dict[str, Any]:
+  async def get_content_list_async(self, contact_id: int, page: int = 0) -> dict[str, Any]:
     """
     Get SMS content list for a specific contact (async)
 
@@ -367,7 +368,7 @@ class SMSEndpoint:
       return {"PhoneNumber": [], "SMSContentList": result, "TotalPageCount": 1}
     return {"PhoneNumber": [], "SMSContentList": [], "TotalPageCount": 0}
 
-  def delete(self, del_flag: int = 0, contact_id: str = "", sms_id: str = "") -> Dict[str, Any]:
+  def delete(self, del_flag: int = 0, contact_id: str = "", sms_id: str = "") -> dict[str, Any]:
     """
     Delete SMS messages (requires login)
 
@@ -381,7 +382,7 @@ class SMSEndpoint:
     """
     return self._client.run("DeleteSMS", DelFlag=del_flag, ContactId=contact_id, SMSId=sms_id)
 
-  async def delete_async(self, del_flag: int = 0, contact_id: str = "", sms_id: str = "") -> Dict[str, Any]:
+  async def delete_async(self, del_flag: int = 0, contact_id: str = "", sms_id: str = "") -> dict[str, Any]:
     """
     Delete SMS messages (async)
 
@@ -395,7 +396,7 @@ class SMSEndpoint:
     """
     return await self._client.run_async("DeleteSMS", DelFlag=del_flag, ContactId=contact_id, SMSId=sms_id)
 
-  def save_draft(self, phone_numbers: List[str], message: str, sms_id: int = -1) -> Dict[str, Any]:
+  def save_draft(self, phone_numbers: Sequence[str], message: str, sms_id: int = -1) -> dict[str, Any]:
     """
     Save SMS as draft (requires login)
 
@@ -416,7 +417,7 @@ class SMSEndpoint:
       SMSTime=timestamp,
     )
 
-  async def save_draft_async(self, phone_numbers: List[str], message: str, sms_id: int = -1) -> Dict[str, Any]:
+  async def save_draft_async(self, phone_numbers: Sequence[str], message: str, sms_id: int = -1) -> dict[str, Any]:
     """
     Save SMS as draft (async)
 

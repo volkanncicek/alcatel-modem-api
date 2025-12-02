@@ -7,7 +7,7 @@ Built with Typer and Rich for beautiful terminal output
 import json
 import sys
 from time import sleep
-from typing import Annotated, Any, Dict, List, Optional
+from typing import Annotated, Any, Optional
 
 import typer
 from rich.align import Align
@@ -472,7 +472,7 @@ def doctor(  # type: ignore[no-untyped-def]
   console.print("=" * 60)
   console.print()
 
-  diagnostics: Dict[str, Any] = {
+  diagnostics: dict[str, Any] = {
     "library_version": "1.0.0",  # TODO: Get from __version__
     "python_version": sys.version.split()[0],
     "connection": {},

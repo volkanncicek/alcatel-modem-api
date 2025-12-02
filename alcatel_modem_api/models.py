@@ -3,7 +3,7 @@ Pydantic models for Alcatel Modem API responses
 Provides better IDE autocompletion, type safety, and data validation
 """
 
-from typing import Any, Dict, Union
+from typing import Any, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -20,7 +20,7 @@ class SystemStatus(BaseModel):
   device: Union[str, None] = Field(alias="DeviceName", default=None)
 
   @classmethod
-  def from_dict(cls, data: Dict[str, Any]) -> "SystemStatus":
+  def from_dict(cls, data: dict[str, Any]) -> "SystemStatus":
     """Create SystemStatus from API response dict"""
     return cls.model_validate(data)
 
@@ -49,7 +49,7 @@ class ExtendedStatus(BaseModel):
   rsrq: Union[int, None] = Field(default=None)
 
   @classmethod
-  def from_dict(cls, data: Dict[str, Any]) -> "ExtendedStatus":
+  def from_dict(cls, data: dict[str, Any]) -> "ExtendedStatus":
     """Create ExtendedStatus from API response dict"""
     return cls.model_validate(data)
 
@@ -83,7 +83,7 @@ class SMSMessage(BaseModel):
     return data
 
   @classmethod
-  def from_dict(cls, data: Dict[str, Any]) -> "SMSMessage":
+  def from_dict(cls, data: dict[str, Any]) -> "SMSMessage":
     """Create SMSMessage from API response dict"""
     return cls.model_validate(data)
 
@@ -113,7 +113,7 @@ class NetworkInfo(BaseModel):
     return None
 
   @classmethod
-  def from_dict(cls, data: Dict[str, Any]) -> "NetworkInfo":
+  def from_dict(cls, data: dict[str, Any]) -> "NetworkInfo":
     """Create NetworkInfo from API response dict"""
     return cls.model_validate(data)
 
@@ -163,7 +163,7 @@ class ConnectionState(BaseModel):
     return data
 
   @classmethod
-  def from_dict(cls, data: Dict[str, Any]) -> "ConnectionState":
+  def from_dict(cls, data: dict[str, Any]) -> "ConnectionState":
     """Create ConnectionState from API response dict"""
     return cls.model_validate(data)
 
