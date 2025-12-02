@@ -45,6 +45,14 @@ dev = [
     "mypy>=1.5.0",
     "pre-commit>=3.0.0",
 ]
+security = [
+    "keyring>=24.0.0",
+]
+docs = [
+    "mkdocs>=1.5.0",
+    "mkdocs-material>=9.0.0",
+    "mkdocstrings[python]>=0.23.0",
+]
 
 [project.scripts]
 alcatel = "alcatel_modem_api.cli:cli"

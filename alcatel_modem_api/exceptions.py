@@ -18,7 +18,16 @@ class AlcatelConnectionError(AlcatelException):
 class AlcatelAPIError(AlcatelException):
   """Raised when API returns an error"""
 
-  pass
+  def __init__(self, message: str, error_code: int | str | None = None):
+    """
+    Initialize API error
+    
+    Args:
+        message: Error message
+        error_code: Optional error code from modem
+    """
+    super().__init__(message)
+    self.error_code = error_code
 
 
 class AlcatelTimeoutError(AlcatelException):
@@ -35,5 +44,23 @@ class AuthenticationError(AlcatelException):
 
 class UnsupportedModemError(AlcatelException):
   """Raised when the modem is not an Alcatel modem or doesn't support the Alcatel API"""
+
+  pass
+
+
+class AlcatelSystemBusyError(AlcatelAPIError):
+  """Raised when modem system is busy"""
+
+  pass
+
+
+class AlcatelSimMissingError(AlcatelAPIError):
+  """Raised when SIM card is missing or not detected"""
+
+  pass
+
+
+class AlcatelFeatureNotSupportedError(AlcatelAPIError):
+  """Raised when a feature is not supported on this modem model/firmware"""
 
   pass

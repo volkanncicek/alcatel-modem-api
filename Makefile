@@ -38,10 +38,9 @@ docs:
 
 # Clean build artifacts
 clean:
-	Remove-Item -Recurse -Force -ErrorAction SilentlyContinue __pycache__ .pytest_cache .mypy_cache .ruff_cache
-	Remove-Item -Recurse -Force -ErrorAction SilentlyContinue alcatel_modem_api\__pycache__ alcatel_modem_api\**\__pycache__
-	Remove-Item -Recurse -Force -ErrorAction SilentlyContinue tests\__pycache__
-	Remove-Item -Recurse -Force -ErrorAction SilentlyContinue *.egg-info dist build
+	@find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+	@rm -rf .pytest_cache .mypy_cache .ruff_cache 2>/dev/null || true
+	@rm -rf *.egg-info dist build 2>/dev/null || true
 
 # Help target
 help:

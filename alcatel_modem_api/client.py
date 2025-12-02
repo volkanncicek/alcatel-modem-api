@@ -16,13 +16,17 @@ import httpx
 from .exceptions import (
   AlcatelAPIError,
   AlcatelConnectionError,
+  AlcatelFeatureNotSupportedError,
+  AlcatelSimMissingError,
+  AlcatelSystemBusyError,
   AlcatelTimeoutError,
   AuthenticationError,
   UnsupportedModemError,
 )
 from .utils.encryption import encrypt_admin, encrypt_token
+from .utils.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Default headers for API requests
 DEFAULT_VERIFICATION_KEY = "KSDHSDFOGQ5WERYTUIQWERTYUISDFG1HJZXCVCXBN2GDSMNDHKVKFsVBNf"
@@ -245,11 +249,18 @@ class AlcatelClient:
     self._password = password
     self._timeout = timeout
 
-    # Token storage
+    # Token storage - try keyring first, fallback to file
     if token_storage:
       self._token_manager = token_storage
     else:
-      self._token_manager = FileTokenStorage(session_file if session_file else None)
+      # Try to use keyring storage with file fallback
+      try:
+        from .utils.keyring_storage import KeyringTokenStorage
+        self._token_manager = KeyringTokenStorage(session_file, use_keyring=True)
+      except (ImportError, Exception):
+        # Fallback to file storage if keyring not available or fails
+        logger.debug("Keyring not available, using file storage")
+        self._token_manager = FileTokenStorage(session_file if session_file else None)
 
     # Default headers
     self._default_headers = {
@@ -531,7 +542,16 @@ class AlcatelClient:
       if error_code == -32699 or "Authentication" in error_msg:
         raise AuthenticationError(f"Authentication failed: {error_msg}")
 
-      raise AlcatelAPIError(f"Command failed: {error_msg} (code: {error_code})")
+      # Map common error messages to specific exceptions
+      error_msg_lower = error_msg.lower()
+      if "system busy" in error_msg_lower or "busy" in error_msg_lower:
+        raise AlcatelSystemBusyError(f"Modem system is busy: {error_msg}", error_code=error_code)
+      if "sim" in error_msg_lower and ("missing" in error_msg_lower or "not" in error_msg_lower):
+        raise AlcatelSimMissingError(f"SIM card issue: {error_msg}", error_code=error_code)
+      if "not supported" in error_msg_lower or "unsupported" in error_msg_lower:
+        raise AlcatelFeatureNotSupportedError(f"Feature not supported: {error_msg}", error_code=error_code)
+
+      raise AlcatelAPIError(f"Command failed: {error_msg} (code: {error_code})", error_code=error_code)
 
     if "result" not in result:
       raise AlcatelAPIError(f"Unexpected response: {result}")
@@ -607,7 +627,16 @@ class AlcatelClient:
       if error_code == -32699 or "Authentication" in error_msg:
         raise AuthenticationError(f"Authentication failed: {error_msg}")
 
-      raise AlcatelAPIError(f"Command failed: {error_msg} (code: {error_code})")
+      # Map common error messages to specific exceptions
+      error_msg_lower = error_msg.lower()
+      if "system busy" in error_msg_lower or "busy" in error_msg_lower:
+        raise AlcatelSystemBusyError(f"Modem system is busy: {error_msg}", error_code=error_code)
+      if "sim" in error_msg_lower and ("missing" in error_msg_lower or "not" in error_msg_lower):
+        raise AlcatelSimMissingError(f"SIM card issue: {error_msg}", error_code=error_code)
+      if "not supported" in error_msg_lower or "unsupported" in error_msg_lower:
+        raise AlcatelFeatureNotSupportedError(f"Feature not supported: {error_msg}", error_code=error_code)
+
+      raise AlcatelAPIError(f"Command failed: {error_msg} (code: {error_code})", error_code=error_code)
 
     if "result" not in result:
       raise AlcatelAPIError(f"Unexpected response: {result}")
