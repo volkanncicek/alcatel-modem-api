@@ -18,7 +18,7 @@ from .exceptions import (
 )
 from .models import ConnectionState, ExtendedStatus, NetworkInfo, SMSMessage, SystemStatus
 
-__version__ = "1.0.0"
+__version__ = "0.1.0"
 
 __all__ = [
   # Main client class
